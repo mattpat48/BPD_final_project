@@ -1,0 +1,44 @@
+## Maven / Java
+/target/
+*.class
+*.jar
+*.war
+*.ear
+
+## Spring Boot
+/*.log
+logs/
+
+## IDEs
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+.vscode/
+
+## OS files
+.DS_Store
+Thumbs.db
+
+## Build tools
+*.log
+
+## Local run state and temp
+.run/
+posting_requests.txt
+
+## IntelliJ
+out/
+
+## Windows thumbnail cache
+ehthumbs.db
+Icon?
+
+## Node
+node_modules/
+
+## Others
+*.swp
+*~
+
