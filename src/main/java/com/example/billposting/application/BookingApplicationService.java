@@ -107,7 +107,13 @@ public class BookingApplicationService {
 
         UserDetailsDto userDetailsDto = new UserDetailsDto(
                 userDetails.getUsername(),
-                userDetails.getFullName(),
+            userDetails.getName(),
+            userDetails.getSurname(),
+            userDetails.getTaxCode(),
+            userDetails.getAddress(),
+            userDetails.getCity(),
+            userDetails.getZipCode(),
+            userDetails.getFullName(),
                 userDetails.getEmail(),
                 userDetails.getPhone());
 

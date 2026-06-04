@@ -30,7 +30,7 @@ foreach ($entry in $entries) {
     try {
         if ($entry.pid) {
             Write-Host "Stopping $($entry.name) (PID $($entry.pid))"
-            Stop-Process -Id $entry.pid -Force -ErrorAction Stop
+            & taskkill /PID $entry.pid /T /F | Out-Null
         }
     } catch {
         Write-Host "Process $($entry.pid) could not be stopped or is not running: $_" -ForegroundColor Yellow
@@ -38,6 +38,7 @@ foreach ($entry in $entries) {
 }
 
 Remove-Item $stateFile -ErrorAction SilentlyContinue
+Remove-Item (Join-Path $root '.run\logs') -Recurse -Force -ErrorAction SilentlyContinue
 Write-Host "Stopped processes and removed .run/processes.json"
 
 Pop-Location

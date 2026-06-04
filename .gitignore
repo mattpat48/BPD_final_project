@@ -1,5 +1,6 @@
 ## Maven / Java
-/target/
+target/
+docs/
 *.class
 *.jar
 *.war
