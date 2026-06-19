@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_0cwdpz0" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.22.0" modeler:executionPlatform="Camunda Platform" modeler:executionPlatformVersion="7.19.0">
+  <bpmn:process id="ServiceTaskDelegate" name="ServiceTaskDelegate" isExecutable="true" camunda:historyTimeToLive="1">
+    <bpmn:startEvent id="StartEvent_1">
+      <bpmn:outgoing>Flow_0hfvys6</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:endEvent id="Event_1xug0sg">
+      <bpmn:incoming>Flow_0s1yr9i</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_0hfvys6" sourceRef="StartEvent_1" targetRef="Activity_1fgdasz" />
+    <bpmn:sequenceFlow id="Flow_0s1yr9i" sourceRef="Activity_1fgdasz" targetRef="Event_1xug0sg" />
+    <bpmn:serviceTask id="Activity_1fgdasz" name="Service Task Delegate" camunda:class="it.univaq.disim.bpd.example.delegates.MyDelegate">
+      <bpmn:incoming>Flow_0hfvys6</bpmn:incoming>
+      <bpmn:outgoing>Flow_0s1yr9i</bpmn:outgoing>
+    </bpmn:serviceTask>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="ServiceTaskDelegate">
+      <bpmndi:BPMNShape id="_BPMNShape_StartEvent_2" bpmnElement="StartEvent_1">
+        <dc:Bounds x="179" y="99" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_1xug0sg_di" bpmnElement="Event_1xug0sg">
+        <dc:Bounds x="432" y="99" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_01s8v9k_di" bpmnElement="Activity_1fgdasz">
+        <dc:Bounds x="270" y="77" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_0hfvys6_di" bpmnElement="Flow_0hfvys6">
+        <di:waypoint x="215" y="117" />
+        <di:waypoint x="270" y="117" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0s1yr9i_di" bpmnElement="Flow_0s1yr9i">
+        <di:waypoint x="370" y="117" />
+        <di:waypoint x="432" y="117" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
