@@ -44,12 +44,12 @@ done
 echo " OK."
 
 echo "Starting BPMN Request Branch..."
-RESPONSE=$(curl -s -X GET http://localhost:8080/api/request)
+RESPONSE=$(curl -s -X GET http://localhost:8080/api/request/start)
 
 echo "Response: $RESPONSE"
 
 echo "Starting BPMN Decision Branch..."
-RESPONSE=$(curl -s -X GET http://localhost:8080/api/decision)
+RESPONSE=$(curl -s -X GET http://localhost:8080/api/decision/start)
 
 echo "Response: $RESPONSE"
 

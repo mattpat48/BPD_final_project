@@ -15,7 +15,7 @@ public class ProcessController {
     @Autowired
     private RuntimeService runtimeService;
 
-    @GetMapping("/api/request")
+    @GetMapping("/api/request/start")
     public ResponseEntity<String> triggerRequest() {
         Map<String, Object> variables = new HashMap<>();
         variables.put("type", "request");
@@ -23,7 +23,7 @@ public class ProcessController {
         return ResponseEntity.ok("Request process instance started");
     }
 
-    @GetMapping("/api/decision")
+    @GetMapping("/api/decision/start")
     public ResponseEntity<String> triggerDecision() {
         Map<String, Object> variables = new HashMap<>();
         variables.put("type", "decision");
