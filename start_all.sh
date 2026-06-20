@@ -43,10 +43,14 @@ while ! curl -s -f http://localhost:8080/engine-rest/engine > /dev/null; do
 done
 echo " OK."
 
-echo "Starting HelloWorldProcess..."
-RESPONSE=$(curl -s -X POST http://localhost:8080/engine-rest/process-definition/key/HelloWorldProcess/start \
-     -H "Content-Type: application/json" \
-     -d "{}")
+echo "Starting BPMN Request Branch..."
+RESPONSE=$(curl -s -X GET http://localhost:8080/api/request)
 
-echo "Process started. Response: $RESPONSE"
+echo "Response: $RESPONSE"
+
+echo "Starting BPMN Decision Branch..."
+RESPONSE=$(curl -s -X GET http://localhost:8080/api/decision)
+
+echo "Response: $RESPONSE"
+
 echo "Script completed (Runtime output visible in: logs/camunda.log)"
