@@ -7,10 +7,8 @@ import org.springframework.stereotype.Component;
 @Component("myDelegate")
 public class MyDelegate implements JavaDelegate {
 
-	@Override
-	public void execute(DelegateExecution execution) throws Exception {
-		
-		System.out.println("\nHello World!\n");
-	}
-
+  @Override
+  public void execute(DelegateExecution execution) {
+    System.out.println("Hello World from MyDelegate!");
+  }
 }

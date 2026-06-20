@@ -75,10 +75,18 @@
   </dependencies>
 
   <build>
+  <finalName>BPD-Camunda-Project</finalName>
     <plugins>
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
+        <executions>
+          <execution>
+              <goals>
+                  <goal>repackage</goal>
+              </goals>
+          </execution>
+        </executions>
         <version>2.7.9</version>
       </plugin>
     </plugins>

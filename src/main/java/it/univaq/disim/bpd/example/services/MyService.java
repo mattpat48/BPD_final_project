@@ -5,7 +5,7 @@ import org.springframework.stereotype.Service;
 @Service("myService")
 public class MyService {
 
-	public void helloWorldService() {
-		System.out.println("\nHello world from a service!\n");
-	}
+  public void helloWorldService() {
+    System.out.println("Hello world from a service!");
+  }
 }
