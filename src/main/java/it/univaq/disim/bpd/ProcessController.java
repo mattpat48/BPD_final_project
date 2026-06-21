@@ -42,12 +42,15 @@ public class ProcessController {
                     .setVariables(variables)
                     .executeWithVariablesInReturn();
 
+            // We retrieve the variables from the returned 'instance' object
             Object selectedZones = instance.getVariables().get("selectedZonesJSON");
             Object totalPrice = instance.getVariables().get("totalPrice");
+            Object requestId = instance.getVariables().get("requestId");
 
             Map<String, Object> responseData = new HashMap<>();
-            responseData.put("message", "Zone selection completed!");
+            responseData.put("message", "Request completed successfully!");
             responseData.put("processInstanceId", instance.getId());
+            responseData.put("requestId", requestId);
             responseData.put("selectedZonesJSON", selectedZones);
             responseData.put("totalPrice", totalPrice);
 
