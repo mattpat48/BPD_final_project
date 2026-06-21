@@ -1,15 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.22.0">
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.48.0">
   <bpmn:process id="PublicBillposting" name="Public Billposting Process" isExecutable="true" camunda:historyTimeToLive="1">
-    
     <bpmn:startEvent id="StartEvent_1" name="Request Received">
       <bpmn:outgoing>Flow_1</bpmn:outgoing>
     </bpmn:startEvent>
-
     <bpmn:serviceTask id="Task_GetUserData" name="Get User Data">
       <bpmn:extensionElements>
         <camunda:connector>
-          <camunda:connectorId>http-connector</camunda:connectorId>
           <camunda:inputOutput>
             <camunda:inputParameter name="url">
               <camunda:script scriptFormat="freemarker">http://localhost:9080/user/${username}</camunda:script>
@@ -19,16 +16,15 @@
               <camunda:script scriptFormat="javascript">S(response)</camunda:script>
             </camunda:outputParameter>
           </camunda:inputOutput>
+          <camunda:connectorId>http-connector</camunda:connectorId>
         </camunda:connector>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_1</bpmn:incoming>
       <bpmn:outgoing>Flow_2</bpmn:outgoing>
     </bpmn:serviceTask>
-
     <bpmn:serviceTask id="Task_GetZoneList" name="Get Zone List">
       <bpmn:extensionElements>
         <camunda:connector>
-          <camunda:connectorId>http-connector</camunda:connectorId>
           <camunda:inputOutput>
             <camunda:inputParameter name="url">
               <camunda:script scriptFormat="freemarker">http://localhost:9090/zones/${posterFormat}</camunda:script>
@@ -38,76 +34,107 @@
               <camunda:script scriptFormat="javascript">response</camunda:script>
             </camunda:outputParameter>
           </camunda:inputOutput>
+          <camunda:connectorId>http-connector</camunda:connectorId>
         </camunda:connector>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_2</bpmn:incoming>
       <bpmn:outgoing>Flow_3</bpmn:outgoing>
     </bpmn:serviceTask>
-
     <bpmn:scriptTask id="Task_SelectZones" name="Select Zones (Greedy)" scriptFormat="javascript" camunda:resource="classpath:scripts/selectZones.js">
       <bpmn:incoming>Flow_3</bpmn:incoming>
       <bpmn:outgoing>Flow_4</bpmn:outgoing>
     </bpmn:scriptTask>
-
     <bpmn:serviceTask id="Task_CheckAvailability" name="Check Availability (SOAP)">
       <bpmn:extensionElements>
         <camunda:connector>
-          <camunda:connectorId>soap-http-connector</camunda:connectorId>
           <camunda:inputOutput>
             <camunda:inputParameter name="url">http://localhost:8888/postingservice</camunda:inputParameter>
             <camunda:inputParameter name="payload">
-              <camunda:script scriptFormat="freemarker" resource="classpath:templates/availabilityRequest.ftl"/>
+              <camunda:script scriptFormat="freemarker" resource="classpath:templates/availabilityRequest.ftl" />
             </camunda:inputParameter>
             <camunda:inputParameter name="headers">
               <camunda:map>
-                <camunda:entry key="Content-Type">
-                  <camunda:value>text/xml;charset=UTF-8</camunda:value>
-                </camunda:entry>
+                <camunda:entry key="Content-Type">text/xml;charset=UTF-8</camunda:entry>
               </camunda:map>
             </camunda:inputParameter>
-            <camunda:outputParameter name="requestId">
-              <camunda:script scriptFormat="javascript" resource="classpath:scripts/extractRequestId.js"/>
-            </camunda:outputParameter>
             <camunda:outputParameter name="isAvailable">
-              <camunda:script scriptFormat="javascript" resource="classpath:scripts/extractAvailability.js"/>
+              <camunda:script scriptFormat="javascript" resource="classpath:scripts/extractAvailability.js" />
+            </camunda:outputParameter>
+            <camunda:outputParameter name="requestId">
+              <camunda:script scriptFormat="javascript" resource="classpath:scripts/extractRequestId.js" />
             </camunda:outputParameter>
           </camunda:inputOutput>
+          <camunda:connectorId>soap-http-connector</camunda:connectorId>
         </camunda:connector>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_4</bpmn:incoming>
       <bpmn:outgoing>Flow_5</bpmn:outgoing>
     </bpmn:serviceTask>
-
-    <!-- NEW: Wait for Decision Message Event -->
     <bpmn:intermediateCatchEvent id="Event_WaitForDecision" name="Wait for user decision">
       <bpmn:incoming>Flow_5</bpmn:incoming>
       <bpmn:outgoing>Flow_6</bpmn:outgoing>
       <bpmn:messageEventDefinition id="MessageEventDefinition_1" messageRef="Message_Decision" />
     </bpmn:intermediateCatchEvent>
-
-    <!-- NEW: Print Decision Script Task -->
-    <bpmn:scriptTask id="Task_PrintDecision" name="Print Decision" scriptFormat="javascript" camunda:resource="classpath:scripts/printDecision.js">
+    <bpmn:exclusiveGateway id="Gateway_Decision" name="Decision?">
       <bpmn:incoming>Flow_6</bpmn:incoming>
-      <bpmn:outgoing>Flow_7</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Confirm</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Cancel</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_Confirm" name="confirm" sourceRef="Gateway_Decision" targetRef="Task_ConfirmRequest">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${decision == 'confirm'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:serviceTask id="Task_ConfirmRequest" name="Confirm Request (SOAP)">
+      <bpmn:extensionElements>
+        <camunda:connector>
+          <camunda:inputOutput>
+            <camunda:inputParameter name="url">http://localhost:8888/postingservice</camunda:inputParameter>
+            <camunda:inputParameter name="payload">
+              <camunda:script scriptFormat="freemarker" resource="classpath:templates/confirmationRequest.ftl" />
+            </camunda:inputParameter>
+            <camunda:inputParameter name="headers">
+              <camunda:map>
+                <camunda:entry key="Content-Type">text/xml;charset=UTF-8</camunda:entry>
+              </camunda:map>
+            </camunda:inputParameter>
+            <camunda:outputParameter name="accountHolder">
+              <camunda:script scriptFormat="javascript" resource="classpath:scripts/extractAccountHolder.js" />
+            </camunda:outputParameter>
+            <camunda:outputParameter name="invoiceNumber">
+              <camunda:script scriptFormat="javascript" resource="classpath:scripts/extractInvoiceNumber.js" />
+            </camunda:outputParameter>
+            <camunda:outputParameter name="amountDue">
+              <camunda:script scriptFormat="javascript" resource="classpath:scripts/extractAmountDue.js" />
+            </camunda:outputParameter>
+          </camunda:inputOutput>
+          <camunda:connectorId>soap-http-connector</camunda:connectorId>
+        </camunda:connector>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Confirm</bpmn:incoming>
+      <bpmn:outgoing>Flow_SaveOrder</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:scriptTask id="Task_SaveOrderFile" name="Save Order Details" scriptFormat="javascript" camunda:resource="classpath:scripts/saveOrderFile.js">
+      <bpmn:incoming>Flow_SaveOrder</bpmn:incoming>
+      <bpmn:outgoing>Flow_ConfirmedEnd</bpmn:outgoing>
     </bpmn:scriptTask>
-
-    <bpmn:endEvent id="EndEvent_1" name="Process Completed">
-      <bpmn:incoming>Flow_7</bpmn:incoming>
+    <bpmn:endEvent id="EndEvent_Confirmed" name="Order Confirmed">
+      <bpmn:incoming>Flow_ConfirmedEnd</bpmn:incoming>
     </bpmn:endEvent>
-
+    <bpmn:sequenceFlow id="Flow_Cancel" name="cancel" sourceRef="Gateway_Decision" targetRef="EndEvent_Cancelled">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${decision == 'cancel'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:endEvent id="EndEvent_Cancelled" name="Order Cancelled">
+      <bpmn:incoming>Flow_Cancel</bpmn:incoming>
+    </bpmn:endEvent>
     <bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_1" targetRef="Task_GetUserData" />
     <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_GetUserData" targetRef="Task_GetZoneList" />
     <bpmn:sequenceFlow id="Flow_3" sourceRef="Task_GetZoneList" targetRef="Task_SelectZones" />
     <bpmn:sequenceFlow id="Flow_4" sourceRef="Task_SelectZones" targetRef="Task_CheckAvailability" />
     <bpmn:sequenceFlow id="Flow_5" sourceRef="Task_CheckAvailability" targetRef="Event_WaitForDecision" />
-    <bpmn:sequenceFlow id="Flow_6" sourceRef="Event_WaitForDecision" targetRef="Task_PrintDecision" />
-    <bpmn:sequenceFlow id="Flow_7" sourceRef="Task_PrintDecision" targetRef="EndEvent_1" />
-
+    <bpmn:sequenceFlow id="Flow_6" sourceRef="Event_WaitForDecision" targetRef="Gateway_Decision" />
+    <bpmn:sequenceFlow id="Flow_SaveOrder" sourceRef="Task_ConfirmRequest" targetRef="Task_SaveOrderFile" />
+    <bpmn:sequenceFlow id="Flow_ConfirmedEnd" sourceRef="Task_SaveOrderFile" targetRef="EndEvent_Confirmed" />
   </bpmn:process>
-
-  <!-- DEFINITION OF THE MESSAGE USED FOR CORRELATION -->
   <bpmn:message id="Message_Decision" name="DecisionMessage" />
-
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="PublicBillposting">
       <bpmndi:BPMNShape id="StartEvent_1_di" bpmnElement="StartEvent_1">
@@ -125,19 +152,33 @@
       <bpmndi:BPMNShape id="Task_CheckAvailability_di" bpmnElement="Task_CheckAvailability">
         <dc:Bounds x="720" y="80" width="100" height="80" />
       </bpmndi:BPMNShape>
-      
-      <!-- NEW DI SHAPES -->
       <bpmndi:BPMNShape id="Event_WaitForDecision_di" bpmnElement="Event_WaitForDecision">
         <dc:Bounds x="882" y="102" width="36" height="36" />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Task_PrintDecision_di" bpmnElement="Task_PrintDecision">
-        <dc:Bounds x="980" y="80" width="100" height="80" />
+      <bpmndi:BPMNShape id="Gateway_Decision_di" bpmnElement="Gateway_Decision" isMarkerVisible="true">
+        <dc:Bounds x="975" y="95" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="975" y="71" width="49" height="14" />
+        </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
-      
-      <bpmndi:BPMNShape id="EndEvent_1_di" bpmnElement="EndEvent_1">
-        <dc:Bounds x="1142" y="102" width="36" height="36" />
+      <bpmndi:BPMNShape id="Task_ConfirmRequest_di" bpmnElement="Task_ConfirmRequest">
+        <dc:Bounds x="1090" y="80" width="100" height="80" />
       </bpmndi:BPMNShape>
-      
+      <bpmndi:BPMNShape id="Task_SaveOrderFile_di" bpmnElement="Task_SaveOrderFile">
+        <dc:Bounds x="1240" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_Confirmed_di" bpmnElement="EndEvent_Confirmed">
+        <dc:Bounds x="1402" y="102" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1379" y="138" width="82" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_Cancelled_di" bpmnElement="EndEvent_Cancelled">
+        <dc:Bounds x="1090" y="242" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1068" y="278" width="81" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">
         <di:waypoint x="188" y="120" />
         <di:waypoint x="240" y="120" />
@@ -154,19 +195,36 @@
         <di:waypoint x="660" y="120" />
         <di:waypoint x="720" y="120" />
       </bpmndi:BPMNEdge>
-      
-      <!-- NEW DI EDGES -->
       <bpmndi:BPMNEdge id="Flow_5_di" bpmnElement="Flow_5">
         <di:waypoint x="820" y="120" />
         <di:waypoint x="882" y="120" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_6_di" bpmnElement="Flow_6">
         <di:waypoint x="918" y="120" />
-        <di:waypoint x="980" y="120" />
+        <di:waypoint x="975" y="120" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_7_di" bpmnElement="Flow_7">
-        <di:waypoint x="1080" y="120" />
-        <di:waypoint x="1142" y="120" />
+      <bpmndi:BPMNEdge id="Flow_Confirm_di" bpmnElement="Flow_Confirm">
+        <di:waypoint x="1025" y="120" />
+        <di:waypoint x="1090" y="120" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1039" y="95" width="37" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Cancel_di" bpmnElement="Flow_Cancel">
+        <di:waypoint x="1000" y="145" />
+        <di:waypoint x="1000" y="260" />
+        <di:waypoint x="1090" y="260" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="999" y="193" width="32" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_SaveOrder_di" bpmnElement="Flow_SaveOrder">
+        <di:waypoint x="1190" y="120" />
+        <di:waypoint x="1240" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ConfirmedEnd_di" bpmnElement="Flow_ConfirmedEnd">
+        <di:waypoint x="1340" y="120" />
+        <di:waypoint x="1402" y="120" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

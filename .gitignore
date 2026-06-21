@@ -1,6 +1,7 @@
 ## Maven / Java
 target/
 docs/
+data/
 *.class
 *.jar
 *.war

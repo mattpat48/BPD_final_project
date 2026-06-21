@@ -6,6 +6,9 @@ import java.util.Map;
 import java.util.Collections;
 
 import org.camunda.bpm.engine.RuntimeService;
+import org.camunda.bpm.engine.HistoryService;
+import org.camunda.bpm.engine.history.HistoricVariableInstance;
+import org.camunda.bpm.engine.runtime.MessageCorrelationResult;
 import org.camunda.bpm.engine.runtime.ProcessInstanceWithVariables;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -21,6 +24,9 @@ public class ProcessController {
 
     @Autowired
     private RuntimeService runtimeService;
+
+    @Autowired
+    private HistoryService historyService;
 
     @PostMapping("/request")
     public ResponseEntity<?> requestAvailability(@RequestBody AvailabilityRequestDto input) {
@@ -48,8 +54,8 @@ public class ProcessController {
             Object requestId = instance.getVariables().get("requestId");
 
             Map<String, Object> responseData = new HashMap<>();
-            responseData.put("message", "Zone selection and availability check completed. Waiting for decision.");
-            responseData.put("processInstanceId", instance.getId());
+            //responseData.put("message", "Zone selection and availability check completed. Waiting for decision.");
+            //responseData.put("processInstanceId", instance.getId());
             responseData.put("requestId", requestId);
             responseData.put("selectedZonesJSON", selectedZones);
             responseData.put("totalPrice", totalPrice);
@@ -72,12 +78,39 @@ public class ProcessController {
         }
 
         try {
-            runtimeService.createMessageCorrelation("DecisionMessage")
+            // correlateWithResult() allows us to get the Execution reference even if the process ends instantly
+            MessageCorrelationResult result = runtimeService.createMessageCorrelation("DecisionMessage")
                     .processInstanceVariableEquals("requestId", input.getRequestId())
                     .setVariable("decision", input.getDecision())
-                    .correlate();
+                    .correlateWithResult();
 
-            return ResponseEntity.ok(Collections.singletonMap("message", "Decision applied for request " + input.getRequestId()));
+            String processInstanceId = result.getExecution().getProcessInstanceId();
+            Map<String, Object> responseData = new HashMap<>();
+            //responseData.put("message", "Decision applied successfully.");
+
+            // If confirmed, fetch the billing variables from the History Database
+            if ("confirm".equals(input.getDecision())) {
+                HistoricVariableInstance accountHolderVar = historyService.createHistoricVariableInstanceQuery()
+                        .processInstanceId(processInstanceId)
+                        .variableName("accountHolder")
+                        .singleResult();
+
+                HistoricVariableInstance invoiceVar = historyService.createHistoricVariableInstanceQuery()
+                        .processInstanceId(processInstanceId)
+                        .variableName("invoiceNumber")
+                        .singleResult();
+                
+                HistoricVariableInstance amountVar = historyService.createHistoricVariableInstanceQuery()
+                        .processInstanceId(processInstanceId)
+                        .variableName("amountDue")
+                        .singleResult();
+
+                if (accountHolderVar != null) responseData.put("accountHolder", accountHolderVar.getValue());
+                if (invoiceVar != null) responseData.put("invoiceNumber", invoiceVar.getValue());
+                if (amountVar != null) responseData.put("amountDue", amountVar.getValue());
+            }
+
+            return ResponseEntity.ok(responseData);
             
         } catch (org.camunda.bpm.engine.MismatchingMessageCorrelationException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
