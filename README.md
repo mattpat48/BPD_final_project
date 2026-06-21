@@ -15,3 +15,8 @@ Gestione di dati complessi (Payload JSON): Nella prima API (/request) devi invia
 Semantica REST (Cambiamento di Stato): Le regole standard delle API REST dicono che il metodo GET deve essere usato esclusivamente per leggere dati, senza modificare nulla sul server (idempotenza). Le nostre due API, invece, modificano pesantemente lo stato del sistema: la prima crea una nuova istanza di processo Camunda, la seconda sveglia e fa avanzare un processo esistente. Per le operazioni di creazione o modifica, il metodo corretto da usare è la POST.
 
 Pulizia e Sicurezza: I parametri passati tramite GET finiscono visibili nell'URL. Questo significa che rimarrebbero salvati nella cronologia del browser o nei log dei server di rete. Utilizzando la POST, i dati dell'utente (come l'username o la decisione presa) viaggiano "nascosti" all'interno del corpo della richiesta HTTP.
+## Selezione dei Task nel processo BPMN
+### Service Tasks: Get User Data, Get Zones
+Sono standard in Camunda per chiamate a sistemi esterni come APIs REST che forniscono risposte istantanee. Altre alternative potevano essere Send/Receive, però quelle sono pensate per task asincrone. Essendo che le chiamate API sono istantanee, il Service Task fitta meglio.
+### Script Task: Select Zones
+Avendo bisogno di fare calcoli, loopare nei dati e parsare HSON, la script task ci permette di scrivere JavaScript direttamente dentro il modeler, semplificando la situazione. Avremmo potuto usare un JavaDelegate, ma creare e compilare un nuovo intero file per una situaizone così semplice sarebbe stato overkill
