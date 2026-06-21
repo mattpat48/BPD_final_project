@@ -43,14 +43,15 @@ while ! curl -s -f http://localhost:8080/engine-rest/engine > /dev/null; do
 done
 echo " OK."
 
-echo "Starting BPMN Request Branch..."
-RESPONSE=$(curl -s -X GET http://localhost:8080/api/request/start)
 
-echo "Response: $RESPONSE"
+#echo "Starting BPMN Request Branch..."
+#RESPONSE=$(curl -s -X GET http://localhost:8080/api/request/start)
 
-echo "Starting BPMN Decision Branch..."
-RESPONSE=$(curl -s -X GET http://localhost:8080/api/decision/start)
+#echo "Response: $RESPONSE"
 
-echo "Response: $RESPONSE"
+#echo "Starting BPMN Decision Branch..."
+#RESPONSE=$(curl -s -X GET http://localhost:8080/api/decision/start)
+
+#echo "Response: $RESPONSE"
 
 echo "Script completed (Runtime output visible in: logs/camunda.log)"

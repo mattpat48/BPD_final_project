@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.22.0">
+  <bpmn:process id="PublicBillposting" name="Public Billposting Process" isExecutable="true" camunda:historyTimeToLive="1">
+    
+    <bpmn:startEvent id="StartEvent_1" name="Request Received">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:serviceTask id="Task_GetUserData" name="Get User Data">
+      <bpmn:extensionElements>
+        <camunda:connector>
+          <camunda:connectorId>http-connector</camunda:connectorId>
+          <camunda:inputOutput>
+            <camunda:inputParameter name="url">
+              <camunda:script scriptFormat="freemarker">http://localhost:9080/user/${username}</camunda:script>
+            </camunda:inputParameter>
+            <camunda:inputParameter name="method">GET</camunda:inputParameter>
+            <camunda:outputParameter name="userData">
+              <camunda:script scriptFormat="javascript">S(response)</camunda:script>
+            </camunda:outputParameter>
+          </camunda:inputOutput>
+        </camunda:connector>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_2</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_GetZoneList" name="Get Zone List">
+      <bpmn:extensionElements>
+        <camunda:connector>
+          <camunda:connectorId>http-connector</camunda:connectorId>
+          <camunda:inputOutput>
+            <camunda:inputParameter name="url">
+              <camunda:script scriptFormat="freemarker">http://localhost:9090/zones/${posterFormat}</camunda:script>
+            </camunda:inputParameter>
+            <camunda:inputParameter name="method">GET</camunda:inputParameter>
+            <camunda:outputParameter name="availableZonesJSON">
+              <camunda:script scriptFormat="javascript">response</camunda:script>
+            </camunda:outputParameter>
+          </camunda:inputOutput>
+        </camunda:connector>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_3</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:scriptTask id="Task_SelectZones" name="Select Zones (Greedy)" scriptFormat="javascript">
+      <bpmn:incoming>Flow_3</bpmn:incoming>
+      <bpmn:outgoing>Flow_4</bpmn:outgoing>
+      <bpmn:script><![CDATA[
+var system = java.lang.System;
+system.out.println("=== Starting Zone Selection (Greedy) for " + username + " ===");
+
+var zonesList = JSON.parse(availableZonesJSON);
+var selectedZones = [];
+var totalPrice = 0.0;
+
+for (var c = 0; c < cities.size(); c++) {
+    var city = cities.get(c);
+    system.out.println("- City: " + city + " | Max Budget: " + maxPrice);
+
+    var cityZones = [];
+    for (var i = 0; i < zonesList.length; i++) {
+        if (zonesList[i].city === city) {
+            cityZones.push(zonesList[i]);
+        }
+    }
+
+    cityZones.sort(function(a, b) { return b.price - a.price; });
+
+    var currentCityTotal = 0.0;
+    for (var j = 0; j < cityZones.length; j++) {
+        if (currentCityTotal + cityZones[j].price <= maxPrice) {
+            selectedZones.push(cityZones[j]);
+            currentCityTotal += cityZones[j].price;
+            totalPrice += cityZones[j].price;
+            system.out.println("  > Selected zone ID " + cityZones[j].id + " for " + cityZones[j].price);
+        }
+    }
+}
+
+var selectedJSON = JSON.stringify(selectedZones);
+execution.setVariable("selectedZonesJSON", selectedJSON);
+execution.setVariable("totalPrice", totalPrice);
+system.out.println("=== Final Total Cost: " + totalPrice + " ===");
+      ]]></bpmn:script>
+    </bpmn:scriptTask>
+
+    <bpmn:endEvent id="EndEvent_1" name="Phase 1 Completed">
+      <bpmn:incoming>Flow_4</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_1" targetRef="Task_GetUserData" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_GetUserData" targetRef="Task_GetZoneList" />
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="Task_GetZoneList" targetRef="Task_SelectZones" />
+    <bpmn:sequenceFlow id="Flow_4" sourceRef="Task_SelectZones" targetRef="EndEvent_1" />
+
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="PublicBillposting">
+      <bpmndi:BPMNShape id="StartEvent_1_di" bpmnElement="StartEvent_1">
+        <dc:Bounds x="152" y="102" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_GetUserData_di" bpmnElement="Task_GetUserData">
+        <dc:Bounds x="240" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_GetZoneList_di" bpmnElement="Task_GetZoneList">
+        <dc:Bounds x="400" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_SelectZones_di" bpmnElement="Task_SelectZones">
+        <dc:Bounds x="560" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_1_di" bpmnElement="EndEvent_1">
+        <dc:Bounds x="722" y="102" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">
+        <di:waypoint x="188" y="120" />
+        <di:waypoint x="240" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_2_di" bpmnElement="Flow_2">
+        <di:waypoint x="340" y="120" />
+        <di:waypoint x="400" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_3_di" bpmnElement="Flow_3">
+        <di:waypoint x="500" y="120" />
+        <di:waypoint x="560" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_4_di" bpmnElement="Flow_4">
+        <di:waypoint x="660" y="120" />
+        <di:waypoint x="722" y="120" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
