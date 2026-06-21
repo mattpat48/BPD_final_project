@@ -108,6 +108,10 @@ public class ProcessController {
                 if (accountHolderVar != null) responseData.put("accountHolder", accountHolderVar.getValue());
                 if (invoiceVar != null) responseData.put("invoiceNumber", invoiceVar.getValue());
                 if (amountVar != null) responseData.put("amountDue", amountVar.getValue());
+            } else if ("cancel".equals(input.getDecision())) {
+                responseData.put("accountHolder", "N/A");
+                responseData.put("invoiceNumber", "N/A");
+                responseData.put("amountDue", "0.0");
             }
 
             return ResponseEntity.ok(responseData);

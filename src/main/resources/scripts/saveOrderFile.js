@@ -4,12 +4,12 @@ var FileWriter = java.io.FileWriter;
 var BufferedWriter = java.io.BufferedWriter;
 
 try {
-    var directory = new File("data/orders");
+    var directory = new File("data/orders/confirmed");
     if (!directory.exists()) {
         directory.mkdirs();
     }
 
-    var fileName = "data/orders/order_" + requestId + ".txt";
+    var fileName = "data/orders/confirmed/order_" + requestId + ".txt";
     var fileWriter = new FileWriter(fileName);
     var bufferedWriter = new BufferedWriter(fileWriter);
 

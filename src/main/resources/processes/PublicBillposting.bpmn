@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.48.0">
   <bpmn:process id="PublicBillposting" name="Public Billposting Process" isExecutable="true" camunda:historyTimeToLive="1">
+    
     <bpmn:startEvent id="StartEvent_1" name="Request Received">
       <bpmn:outgoing>Flow_1</bpmn:outgoing>
     </bpmn:startEvent>
+    
     <bpmn:serviceTask id="Task_GetUserData" name="Get User Data">
       <bpmn:extensionElements>
         <camunda:connector>
@@ -22,6 +24,7 @@
       <bpmn:incoming>Flow_1</bpmn:incoming>
       <bpmn:outgoing>Flow_2</bpmn:outgoing>
     </bpmn:serviceTask>
+    
     <bpmn:serviceTask id="Task_GetZoneList" name="Get Zone List">
       <bpmn:extensionElements>
         <camunda:connector>
@@ -40,10 +43,12 @@
       <bpmn:incoming>Flow_2</bpmn:incoming>
       <bpmn:outgoing>Flow_3</bpmn:outgoing>
     </bpmn:serviceTask>
+    
     <bpmn:scriptTask id="Task_SelectZones" name="Select Zones (Greedy)" scriptFormat="javascript" camunda:resource="classpath:scripts/selectZones.js">
       <bpmn:incoming>Flow_3</bpmn:incoming>
       <bpmn:outgoing>Flow_4</bpmn:outgoing>
     </bpmn:scriptTask>
+    
     <bpmn:serviceTask id="Task_CheckAvailability" name="Check Availability (SOAP)">
       <bpmn:extensionElements>
         <camunda:connector>
@@ -70,19 +75,24 @@
       <bpmn:incoming>Flow_4</bpmn:incoming>
       <bpmn:outgoing>Flow_5</bpmn:outgoing>
     </bpmn:serviceTask>
+    
     <bpmn:intermediateCatchEvent id="Event_WaitForDecision" name="Wait for user decision">
       <bpmn:incoming>Flow_5</bpmn:incoming>
       <bpmn:outgoing>Flow_6</bpmn:outgoing>
       <bpmn:messageEventDefinition id="MessageEventDefinition_1" messageRef="Message_Decision" />
     </bpmn:intermediateCatchEvent>
+    
     <bpmn:exclusiveGateway id="Gateway_Decision" name="Decision?">
       <bpmn:incoming>Flow_6</bpmn:incoming>
       <bpmn:outgoing>Flow_Confirm</bpmn:outgoing>
       <bpmn:outgoing>Flow_Cancel</bpmn:outgoing>
     </bpmn:exclusiveGateway>
+    
+    <!-- Confirm Branch -->
     <bpmn:sequenceFlow id="Flow_Confirm" name="confirm" sourceRef="Gateway_Decision" targetRef="Task_ConfirmRequest">
       <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${decision == 'confirm'}</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
+    
     <bpmn:serviceTask id="Task_ConfirmRequest" name="Confirm Request (SOAP)">
       <bpmn:extensionElements>
         <camunda:connector>
@@ -112,19 +122,52 @@
       <bpmn:incoming>Flow_Confirm</bpmn:incoming>
       <bpmn:outgoing>Flow_SaveOrder</bpmn:outgoing>
     </bpmn:serviceTask>
+    
     <bpmn:scriptTask id="Task_SaveOrderFile" name="Save Order Details" scriptFormat="javascript" camunda:resource="classpath:scripts/saveOrderFile.js">
       <bpmn:incoming>Flow_SaveOrder</bpmn:incoming>
       <bpmn:outgoing>Flow_ConfirmedEnd</bpmn:outgoing>
     </bpmn:scriptTask>
+    
     <bpmn:endEvent id="EndEvent_Confirmed" name="Order Confirmed">
       <bpmn:incoming>Flow_ConfirmedEnd</bpmn:incoming>
     </bpmn:endEvent>
-    <bpmn:sequenceFlow id="Flow_Cancel" name="cancel" sourceRef="Gateway_Decision" targetRef="EndEvent_Cancelled">
+
+    <!-- Cancel Branch -->
+    <bpmn:sequenceFlow id="Flow_Cancel" name="cancel" sourceRef="Gateway_Decision" targetRef="Task_CancelRequest">
       <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${decision == 'cancel'}</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
-    <bpmn:endEvent id="EndEvent_Cancelled" name="Order Cancelled">
+
+    <bpmn:serviceTask id="Task_CancelRequest" name="Cancel Request (SOAP)">
+      <bpmn:extensionElements>
+        <camunda:connector>
+          <camunda:inputOutput>
+            <camunda:inputParameter name="url">http://localhost:8888/postingservice</camunda:inputParameter>
+            <camunda:inputParameter name="payload">
+              <camunda:script scriptFormat="freemarker" resource="classpath:templates/cancellationRequest.ftl" />
+            </camunda:inputParameter>
+            <camunda:inputParameter name="headers">
+              <camunda:map>
+                <camunda:entry key="Content-Type">text/xml;charset=UTF-8</camunda:entry>
+              </camunda:map>
+            </camunda:inputParameter>
+          </camunda:inputOutput>
+          <camunda:connectorId>soap-http-connector</camunda:connectorId>
+        </camunda:connector>
+      </bpmn:extensionElements>
       <bpmn:incoming>Flow_Cancel</bpmn:incoming>
+      <bpmn:outgoing>Flow_CancelToLog</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:scriptTask id="Task_LogCancellation" name="Log Cancellation" scriptFormat="javascript" camunda:resource="classpath:scripts/logCancellation.js">
+      <bpmn:incoming>Flow_CancelToLog</bpmn:incoming>
+      <bpmn:outgoing>Flow_LogToEnd</bpmn:outgoing>
+    </bpmn:scriptTask>
+
+    <bpmn:endEvent id="EndEvent_Cancelled" name="Order Cancelled">
+      <bpmn:incoming>Flow_LogToEnd</bpmn:incoming>
     </bpmn:endEvent>
+    
+    <!-- Sequences -->
     <bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_1" targetRef="Task_GetUserData" />
     <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_GetUserData" targetRef="Task_GetZoneList" />
     <bpmn:sequenceFlow id="Flow_3" sourceRef="Task_GetZoneList" targetRef="Task_SelectZones" />
@@ -133,8 +176,13 @@
     <bpmn:sequenceFlow id="Flow_6" sourceRef="Event_WaitForDecision" targetRef="Gateway_Decision" />
     <bpmn:sequenceFlow id="Flow_SaveOrder" sourceRef="Task_ConfirmRequest" targetRef="Task_SaveOrderFile" />
     <bpmn:sequenceFlow id="Flow_ConfirmedEnd" sourceRef="Task_SaveOrderFile" targetRef="EndEvent_Confirmed" />
+    <bpmn:sequenceFlow id="Flow_CancelToLog" sourceRef="Task_CancelRequest" targetRef="Task_LogCancellation" />
+    <bpmn:sequenceFlow id="Flow_LogToEnd" sourceRef="Task_LogCancellation" targetRef="EndEvent_Cancelled" />
+    
   </bpmn:process>
+  
   <bpmn:message id="Message_Decision" name="DecisionMessage" />
+  
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="PublicBillposting">
       <bpmndi:BPMNShape id="StartEvent_1_di" bpmnElement="StartEvent_1">
@@ -161,6 +209,8 @@
           <dc:Bounds x="975" y="71" width="49" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
+      
+      <!-- Confirm Branch Shapes -->
       <bpmndi:BPMNShape id="Task_ConfirmRequest_di" bpmnElement="Task_ConfirmRequest">
         <dc:Bounds x="1090" y="80" width="100" height="80" />
       </bpmndi:BPMNShape>
@@ -173,12 +223,22 @@
           <dc:Bounds x="1379" y="138" width="82" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
+
+      <!-- Cancel Branch Shapes -->
+      <bpmndi:BPMNShape id="Task_CancelRequest_di" bpmnElement="Task_CancelRequest">
+        <dc:Bounds x="1090" y="220" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_LogCancellation_di" bpmnElement="Task_LogCancellation">
+        <dc:Bounds x="1240" y="220" width="100" height="80" />
+      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="EndEvent_Cancelled_di" bpmnElement="EndEvent_Cancelled">
-        <dc:Bounds x="1090" y="242" width="36" height="36" />
+        <dc:Bounds x="1402" y="242" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="1068" y="278" width="81" height="14" />
+          <dc:Bounds x="1380" y="278" width="81" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
+      
+      <!-- Edges -->
       <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">
         <di:waypoint x="188" y="120" />
         <di:waypoint x="240" y="120" />
@@ -210,14 +270,6 @@
           <dc:Bounds x="1039" y="95" width="37" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_Cancel_di" bpmnElement="Flow_Cancel">
-        <di:waypoint x="1000" y="145" />
-        <di:waypoint x="1000" y="260" />
-        <di:waypoint x="1090" y="260" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="999" y="193" width="32" height="14" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_SaveOrder_di" bpmnElement="Flow_SaveOrder">
         <di:waypoint x="1190" y="120" />
         <di:waypoint x="1240" y="120" />
@@ -225,6 +277,22 @@
       <bpmndi:BPMNEdge id="Flow_ConfirmedEnd_di" bpmnElement="Flow_ConfirmedEnd">
         <di:waypoint x="1340" y="120" />
         <di:waypoint x="1402" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Cancel_di" bpmnElement="Flow_Cancel">
+        <di:waypoint x="1000" y="145" />
+        <di:waypoint x="1000" y="260" />
+        <di:waypoint x="1090" y="260" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1014" y="243" width="32" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_CancelToLog_di" bpmnElement="Flow_CancelToLog">
+        <di:waypoint x="1190" y="260" />
+        <di:waypoint x="1240" y="260" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_LogToEnd_di" bpmnElement="Flow_LogToEnd">
+        <di:waypoint x="1340" y="260" />
+        <di:waypoint x="1402" y="260" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>
