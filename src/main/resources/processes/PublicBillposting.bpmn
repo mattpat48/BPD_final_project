@@ -49,13 +49,12 @@
       <bpmn:outgoing>Flow_4</bpmn:outgoing>
     </bpmn:scriptTask>
 
-    <bpmn:serviceTask id="Task_CheckAvailability"
-                  name="Check Availability (SOAP)">
+    <bpmn:serviceTask id="Task_CheckAvailability" name="Check Availability (SOAP)">
       <bpmn:extensionElements>
         <camunda:connector>
           <camunda:connectorId>soap-http-connector</camunda:connectorId>
           <camunda:inputOutput>
-            <camunda:inputParameter name="url"> http://localhost:8888/postingservice </camunda:inputParameter>
+            <camunda:inputParameter name="url">http://localhost:8888/postingservice</camunda:inputParameter>
             <camunda:inputParameter name="payload">
               <camunda:script scriptFormat="freemarker" resource="classpath:templates/availabilityRequest.ftl"/>
             </camunda:inputParameter>
@@ -75,19 +74,39 @@
           </camunda:inputOutput>
         </camunda:connector>
       </bpmn:extensionElements>
+      <bpmn:incoming>Flow_4</bpmn:incoming>
+      <bpmn:outgoing>Flow_5</bpmn:outgoing>
     </bpmn:serviceTask>
 
-    <bpmn:endEvent id="EndEvent_1" name="Phase 2 Completed">
+    <!-- NEW: Wait for Decision Message Event -->
+    <bpmn:intermediateCatchEvent id="Event_WaitForDecision" name="Wait for user decision">
       <bpmn:incoming>Flow_5</bpmn:incoming>
+      <bpmn:outgoing>Flow_6</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MessageEventDefinition_1" messageRef="Message_Decision" />
+    </bpmn:intermediateCatchEvent>
+
+    <!-- NEW: Print Decision Script Task -->
+    <bpmn:scriptTask id="Task_PrintDecision" name="Print Decision" scriptFormat="javascript" camunda:resource="classpath:scripts/printDecision.js">
+      <bpmn:incoming>Flow_6</bpmn:incoming>
+      <bpmn:outgoing>Flow_7</bpmn:outgoing>
+    </bpmn:scriptTask>
+
+    <bpmn:endEvent id="EndEvent_1" name="Process Completed">
+      <bpmn:incoming>Flow_7</bpmn:incoming>
     </bpmn:endEvent>
 
     <bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_1" targetRef="Task_GetUserData" />
     <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_GetUserData" targetRef="Task_GetZoneList" />
     <bpmn:sequenceFlow id="Flow_3" sourceRef="Task_GetZoneList" targetRef="Task_SelectZones" />
     <bpmn:sequenceFlow id="Flow_4" sourceRef="Task_SelectZones" targetRef="Task_CheckAvailability" />
-    <bpmn:sequenceFlow id="Flow_5" sourceRef="Task_CheckAvailability" targetRef="EndEvent_1" />
+    <bpmn:sequenceFlow id="Flow_5" sourceRef="Task_CheckAvailability" targetRef="Event_WaitForDecision" />
+    <bpmn:sequenceFlow id="Flow_6" sourceRef="Event_WaitForDecision" targetRef="Task_PrintDecision" />
+    <bpmn:sequenceFlow id="Flow_7" sourceRef="Task_PrintDecision" targetRef="EndEvent_1" />
 
   </bpmn:process>
+
+  <!-- DEFINITION OF THE MESSAGE USED FOR CORRELATION -->
+  <bpmn:message id="Message_Decision" name="DecisionMessage" />
 
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="PublicBillposting">
@@ -106,8 +125,17 @@
       <bpmndi:BPMNShape id="Task_CheckAvailability_di" bpmnElement="Task_CheckAvailability">
         <dc:Bounds x="720" y="80" width="100" height="80" />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="EndEvent_1_di" bpmnElement="EndEvent_1">
+      
+      <!-- NEW DI SHAPES -->
+      <bpmndi:BPMNShape id="Event_WaitForDecision_di" bpmnElement="Event_WaitForDecision">
         <dc:Bounds x="882" y="102" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_PrintDecision_di" bpmnElement="Task_PrintDecision">
+        <dc:Bounds x="980" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      
+      <bpmndi:BPMNShape id="EndEvent_1_di" bpmnElement="EndEvent_1">
+        <dc:Bounds x="1142" y="102" width="36" height="36" />
       </bpmndi:BPMNShape>
       
       <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">
@@ -126,9 +154,19 @@
         <di:waypoint x="660" y="120" />
         <di:waypoint x="720" y="120" />
       </bpmndi:BPMNEdge>
+      
+      <!-- NEW DI EDGES -->
       <bpmndi:BPMNEdge id="Flow_5_di" bpmnElement="Flow_5">
         <di:waypoint x="820" y="120" />
         <di:waypoint x="882" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_6_di" bpmnElement="Flow_6">
+        <di:waypoint x="918" y="120" />
+        <di:waypoint x="980" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_7_di" bpmnElement="Flow_7">
+        <di:waypoint x="1080" y="120" />
+        <di:waypoint x="1142" y="120" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

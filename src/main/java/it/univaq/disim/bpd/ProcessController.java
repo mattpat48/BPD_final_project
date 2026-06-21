@@ -3,6 +3,7 @@ package it.univaq.disim.bpd;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Collections;
 
 import org.camunda.bpm.engine.RuntimeService;
 import org.camunda.bpm.engine.runtime.ProcessInstanceWithVariables;
@@ -28,7 +29,7 @@ public class ProcessController {
             input.getCities() == null || input.getCities().isEmpty() ||
             input.getMaxPrice() == null || input.getMaxPrice() <= 0) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(java.util.Collections.singletonMap("error", "Missing data: username, cities list, and maxPrice (greater than 0) are mandatory."));
+                    .body(Collections.singletonMap("error", "Missing data: username, cities list, and maxPrice (greater than 0) are mandatory."));
         }
 
         try {
@@ -42,13 +43,12 @@ public class ProcessController {
                     .setVariables(variables)
                     .executeWithVariablesInReturn();
 
-            // We retrieve the variables from the returned 'instance' object
             Object selectedZones = instance.getVariables().get("selectedZonesJSON");
             Object totalPrice = instance.getVariables().get("totalPrice");
             Object requestId = instance.getVariables().get("requestId");
 
             Map<String, Object> responseData = new HashMap<>();
-            responseData.put("message", "Request completed successfully!");
+            responseData.put("message", "Zone selection and availability check completed. Waiting for decision.");
             responseData.put("processInstanceId", instance.getId());
             responseData.put("requestId", requestId);
             responseData.put("selectedZonesJSON", selectedZones);
@@ -58,7 +58,33 @@ public class ProcessController {
 
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(java.util.Collections.singletonMap("error", "Error during process execution: " + e.getMessage()));
+                    .body(Collections.singletonMap("error", "Error during process execution: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/decision")
+    public ResponseEntity<?> submitDecision(@RequestBody DecisionRequestDto input) {
+        if (input.getRequestId() == null || input.getRequestId().isEmpty() ||
+            input.getDecision() == null || 
+            (!input.getDecision().equals("confirm") && !input.getDecision().equals("cancel"))) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Collections.singletonMap("error", "Invalid data: requestId and decision ('confirm' or 'cancel') are required."));
+        }
+
+        try {
+            runtimeService.createMessageCorrelation("DecisionMessage")
+                    .processInstanceVariableEquals("requestId", input.getRequestId())
+                    .setVariable("decision", input.getDecision())
+                    .correlate();
+
+            return ResponseEntity.ok(Collections.singletonMap("message", "Decision applied for request " + input.getRequestId()));
+            
+        } catch (org.camunda.bpm.engine.MismatchingMessageCorrelationException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Collections.singletonMap("error", "No active process found waiting for decision with request ID: " + input.getRequestId()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Collections.singletonMap("error", "Error correlating message: " + e.getMessage()));
         }
     }
 
@@ -79,5 +105,16 @@ public class ProcessController {
 
         public Double getMaxPrice() { return maxPrice; }
         public void setMaxPrice(Double maxPrice) { this.maxPrice = maxPrice; }
+    }
+
+    public static class DecisionRequestDto {
+        private String requestId;
+        private String decision;
+
+        public String getRequestId() { return requestId; }
+        public void setRequestId(String requestId) { this.requestId = requestId; }
+
+        public String getDecision() { return decision; }
+        public void setDecision(String decision) { this.decision = decision; }
     }
 }
