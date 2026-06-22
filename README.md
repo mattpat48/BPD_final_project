@@ -1,10 +1,19 @@
 # Note per andare avanti
-- Non serve una richiesta inizializzatrice, bastano due endpoint REST per Request e Decision
-- I messaggi sono costrutti interni del BPMN, servono a comunicare con questo.
-- Utilizzare dei DTO per scambiare dati (tipo dati dell'utente nella request), ne servono 2
-- Necessario salvare request ID come process variable per svegliare il giusto processo
-- Per far funzionare l'endpoint /api/decision, devi avere un Intermediate Catch Message Event nel tuo BPMN. Nelle proprietà di questo evento, devi creare un Message il cui Nome (non l'ID, ma il Message Name) deve essere esattamente DecisionMessage (che è quello richiamato nel codice Java).
-- Della pagina 12 del pdf di consegna, i controlli già implementati sono solo il primo punto, ovvero quelli sui "wrong/inadmissible inputs or any other possible process-related fault"
+- Della pagina 12 del pdf di consegna, i controlli già implementati sono solo il primo punto, ovvero quelli sui "wrong/inadmissible inputs or any other possible process-related fault" e parzialmente gli altri (come l'uso di templates)
+
+# Testing
+
+'''
+curl -X POST http://localhost:8080/api/request -H "Content-Type: application/json" -d '{ "username": "mariorossi", "posterFormat": "60x80", "cities": ["L'\''Aquila", "Rome"], "maxPrice": 20.0 }'
+'''
+
+e poi
+
+'''
+curl -X POST http://localhost:8080/api/decision -H "Content-Type: application/json" -d '{ "requestId": "...", "decision": "cancel" }'
+'''
+
+ovviamente nel requestId va quello restituito dal processo
 
 # Scelte implementative
 ## Logica
