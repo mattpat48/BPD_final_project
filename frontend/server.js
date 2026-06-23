@@ -292,11 +292,6 @@ async function handleApi(req, res, url) {
     return;
   }
 
-  if (req.method === "POST" && url.pathname === "/api/strategy") {
-    await proxyJson(req, res, "http://localhost:8080/api/strategy");
-    return;
-  }
-
   if (req.method === "POST" && url.pathname === "/api/decision") {
     await proxyJson(req, res, "http://localhost:8080/api/decision");
     return;

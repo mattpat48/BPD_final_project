@@ -1,12 +1,12 @@
 // Zone selection with multiple, user-selectable strategies.
-// The chosen algorithm is read from the `strategy` process variable (set either in the first
-// request, or later through the StrategyMessage). If absent it defaults to MOST_EXPENSIVE,
-// keeping the original behaviour. `maxPrice` is the budget PER CITY.
+// The chosen algorithm is read from the `strategy` process variable, set inline on the initial
+// request. If absent it defaults to GREEDY (most-expensive-first), the original behaviour.
+// `maxPrice` is the budget PER CITY.
 var system = java.lang.System;
 
 var strategyName = (typeof strategy !== "undefined" && strategy != null && String(strategy).length > 0)
     ? String(strategy)
-    : "MOST_EXPENSIVE";
+    : "GREEDY";
 system.out.println("=== Zone Selection | strategy=" + strategyName + " | user=" + username + " ===");
 
 // Guard: the zones service must have returned a parseable, non-empty list.
@@ -80,7 +80,7 @@ function selectForCity(cityZones, budget, strat) {
         return picked;
     }
 
-    // MOST_EXPENSIVE (default): premium spots first.
+    // GREEDY (default): premium spots first (most-expensive-first greedy fill).
     return pickGreedy(cityZones, budget, desc);
 }
 

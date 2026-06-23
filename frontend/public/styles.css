@@ -192,31 +192,6 @@ pre {
   font-size: 13px;
 }
 
-.checkbox-label {
-  flex-direction: row;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--muted);
-}
-
-.checkbox-label input {
-  width: auto;
-  margin: 0;
-}
-
-.strategy-step {
-  margin-top: 12px;
-  padding: 12px;
-  border: 1px dashed var(--accent);
-  border-radius: 12px;
-  background: var(--ok-bg);
-}
-
-.strategy-step .eyebrow {
-  margin-bottom: 8px;
-}
-
 .top-actions {
   flex-wrap: wrap;
   justify-content: flex-end;

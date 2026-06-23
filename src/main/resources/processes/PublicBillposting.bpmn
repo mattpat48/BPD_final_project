@@ -52,29 +52,8 @@
       <bpmn:outgoing>Flow_4</bpmn:outgoing>
     </bpmn:serviceTask>
 
-    <!-- Decide whether the strategy is chosen now (inline / default) or deferred to a
-         separate request (StrategyMessage). -->
-    <bpmn:exclusiveGateway id="Gateway_Strategy" name="Defer strategy?" default="Flow_DeferNo">
-      <bpmn:incoming>Flow_4</bpmn:incoming>
-      <bpmn:outgoing>Flow_DeferYes</bpmn:outgoing>
-      <bpmn:outgoing>Flow_DeferNo</bpmn:outgoing>
-    </bpmn:exclusiveGateway>
-
-    <bpmn:sequenceFlow id="Flow_DeferYes" name="defer" sourceRef="Gateway_Strategy" targetRef="Event_WaitForStrategy">
-      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${deferStrategy == true}</bpmn:conditionExpression>
-    </bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="Flow_DeferNo" name="now" sourceRef="Gateway_Strategy" targetRef="Task_SelectZones" />
-
-    <bpmn:intermediateCatchEvent id="Event_WaitForStrategy" name="Wait for strategy choice">
-      <bpmn:incoming>Flow_DeferYes</bpmn:incoming>
-      <bpmn:outgoing>Flow_StrategyToSelect</bpmn:outgoing>
-      <bpmn:messageEventDefinition id="MessageEventDefinition_Strategy" messageRef="Message_Strategy" />
-    </bpmn:intermediateCatchEvent>
-    <bpmn:sequenceFlow id="Flow_StrategyToSelect" sourceRef="Event_WaitForStrategy" targetRef="Task_SelectZones" />
-
     <bpmn:scriptTask id="Task_SelectZones" name="Select Zones (strategy)" scriptFormat="javascript" camunda:resource="classpath:scripts/zoneStrategies.js">
-      <bpmn:incoming>Flow_DeferNo</bpmn:incoming>
-      <bpmn:incoming>Flow_StrategyToSelect</bpmn:incoming>
+      <bpmn:incoming>Flow_4</bpmn:incoming>
       <bpmn:outgoing>Flow_5</bpmn:outgoing>
     </bpmn:scriptTask>
 
@@ -203,7 +182,8 @@
 
     <!-- Error handling event sub-process: catches any BpmnError raised by the validation
          tasks (USER_NOT_FOUND, NO_ZONES_AVAILABLE, NO_AFFORDABLE_ZONES, NOT_AVAILABLE,
-         POSTING_SERVICE_ERROR). Interrupting + catch-all: ends the instance cleanly. -->
+         POSTING_SERVICE_ERROR). It is interrupting, so it stops the main flow and ends the
+         instance cleanly instead of leaving a technical incident. -->
     <bpmn:subProcess id="SubProcess_Error" name="Error Handling" triggeredByEvent="true">
       <bpmn:startEvent id="ErrorStart" name="Business error" isInterrupting="true">
         <bpmn:outgoing>Flow_ErrToHandle</bpmn:outgoing>
@@ -224,7 +204,7 @@
     <bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_1" targetRef="Task_GetUserData" />
     <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_GetUserData" targetRef="Task_ValidateUser" />
     <bpmn:sequenceFlow id="Flow_3" sourceRef="Task_ValidateUser" targetRef="Task_GetZoneList" />
-    <bpmn:sequenceFlow id="Flow_4" sourceRef="Task_GetZoneList" targetRef="Gateway_Strategy" />
+    <bpmn:sequenceFlow id="Flow_4" sourceRef="Task_GetZoneList" targetRef="Task_SelectZones" />
     <bpmn:sequenceFlow id="Flow_5" sourceRef="Task_SelectZones" targetRef="Task_CheckAvailability" />
     <bpmn:sequenceFlow id="Flow_6" sourceRef="Task_CheckAvailability" targetRef="Task_ValidateAvailability" />
     <bpmn:sequenceFlow id="Flow_7" sourceRef="Task_ValidateAvailability" targetRef="Event_WaitForDecision" />
@@ -237,7 +217,6 @@
   </bpmn:process>
 
   <bpmn:message id="Message_Decision" name="DecisionMessage" />
-  <bpmn:message id="Message_Strategy" name="StrategyMessage" />
 
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="PublicBillposting">
@@ -254,59 +233,51 @@
       <bpmndi:BPMNShape id="Task_GetZoneList_di" bpmnElement="Task_GetZoneList">
         <dc:Bounds x="540" y="80" width="100" height="80" />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Gateway_Strategy_di" bpmnElement="Gateway_Strategy" isMarkerVisible="true">
-        <dc:Bounds x="685" y="95" width="50" height="50" />
-        <bpmndi:BPMNLabel><dc:Bounds x="676" y="71" width="69" height="14" /></bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Event_WaitForStrategy_di" bpmnElement="Event_WaitForStrategy">
-        <dc:Bounds x="692" y="240" width="36" height="36" />
-        <bpmndi:BPMNLabel><dc:Bounds x="670" y="283" width="80" height="27" /></bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Task_SelectZones_di" bpmnElement="Task_SelectZones">
-        <dc:Bounds x="800" y="80" width="100" height="80" />
+        <dc:Bounds x="690" y="80" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Task_CheckAvailability_di" bpmnElement="Task_CheckAvailability">
-        <dc:Bounds x="950" y="80" width="100" height="80" />
+        <dc:Bounds x="840" y="80" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Task_ValidateAvailability_di" bpmnElement="Task_ValidateAvailability">
-        <dc:Bounds x="1100" y="80" width="100" height="80" />
+        <dc:Bounds x="990" y="80" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Event_WaitForDecision_di" bpmnElement="Event_WaitForDecision">
-        <dc:Bounds x="1252" y="102" width="36" height="36" />
-        <bpmndi:BPMNLabel><dc:Bounds x="1230" y="145" width="80" height="27" /></bpmndi:BPMNLabel>
+        <dc:Bounds x="1142" y="102" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1120" y="145" width="80" height="27" /></bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Gateway_Decision_di" bpmnElement="Gateway_Decision" isMarkerVisible="true">
-        <dc:Bounds x="1340" y="95" width="50" height="50" />
+        <dc:Bounds x="1230" y="95" width="50" height="50" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="1342" y="71" width="49" height="14" />
+          <dc:Bounds x="1232" y="71" width="49" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
 
       <!-- Confirm Branch Shapes -->
       <bpmndi:BPMNShape id="Task_ConfirmRequest_di" bpmnElement="Task_ConfirmRequest">
-        <dc:Bounds x="1450" y="80" width="100" height="80" />
+        <dc:Bounds x="1340" y="80" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Task_SaveOrderFile_di" bpmnElement="Task_SaveOrderFile">
-        <dc:Bounds x="1600" y="80" width="100" height="80" />
+        <dc:Bounds x="1490" y="80" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="EndEvent_Confirmed_di" bpmnElement="EndEvent_Confirmed">
-        <dc:Bounds x="1762" y="102" width="36" height="36" />
+        <dc:Bounds x="1652" y="102" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="1739" y="145" width="82" height="14" />
+          <dc:Bounds x="1629" y="145" width="82" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
 
       <!-- Cancel Branch Shapes -->
       <bpmndi:BPMNShape id="Task_CancelRequest_di" bpmnElement="Task_CancelRequest">
-        <dc:Bounds x="1450" y="220" width="100" height="80" />
+        <dc:Bounds x="1340" y="220" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Task_LogCancellation_di" bpmnElement="Task_LogCancellation">
-        <dc:Bounds x="1600" y="220" width="100" height="80" />
+        <dc:Bounds x="1490" y="220" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="EndEvent_Cancelled_di" bpmnElement="EndEvent_Cancelled">
-        <dc:Bounds x="1762" y="242" width="36" height="36" />
+        <dc:Bounds x="1652" y="242" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="1740" y="285" width="81" height="14" />
+          <dc:Bounds x="1630" y="285" width="81" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
 
@@ -342,69 +313,54 @@
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_4_di" bpmnElement="Flow_4">
         <di:waypoint x="640" y="120" />
-        <di:waypoint x="685" y="120" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_DeferNo_di" bpmnElement="Flow_DeferNo">
-        <di:waypoint x="735" y="120" />
-        <di:waypoint x="800" y="120" />
-        <bpmndi:BPMNLabel><dc:Bounds x="757" y="102" width="22" height="14" /></bpmndi:BPMNLabel>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_DeferYes_di" bpmnElement="Flow_DeferYes">
-        <di:waypoint x="710" y="145" />
-        <di:waypoint x="710" y="240" />
-        <bpmndi:BPMNLabel><dc:Bounds x="715" y="180" width="26" height="14" /></bpmndi:BPMNLabel>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_StrategyToSelect_di" bpmnElement="Flow_StrategyToSelect">
-        <di:waypoint x="728" y="258" />
-        <di:waypoint x="850" y="258" />
-        <di:waypoint x="850" y="160" />
+        <di:waypoint x="690" y="120" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_5_di" bpmnElement="Flow_5">
-        <di:waypoint x="900" y="120" />
-        <di:waypoint x="950" y="120" />
+        <di:waypoint x="790" y="120" />
+        <di:waypoint x="840" y="120" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_6_di" bpmnElement="Flow_6">
-        <di:waypoint x="1050" y="120" />
-        <di:waypoint x="1100" y="120" />
+        <di:waypoint x="940" y="120" />
+        <di:waypoint x="990" y="120" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_7_di" bpmnElement="Flow_7">
-        <di:waypoint x="1200" y="120" />
-        <di:waypoint x="1252" y="120" />
+        <di:waypoint x="1090" y="120" />
+        <di:waypoint x="1142" y="120" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_8_di" bpmnElement="Flow_8">
-        <di:waypoint x="1288" y="120" />
-        <di:waypoint x="1340" y="120" />
+        <di:waypoint x="1178" y="120" />
+        <di:waypoint x="1230" y="120" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_Confirm_di" bpmnElement="Flow_Confirm">
-        <di:waypoint x="1390" y="120" />
-        <di:waypoint x="1450" y="120" />
+        <di:waypoint x="1280" y="120" />
+        <di:waypoint x="1340" y="120" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="1404" y="95" width="37" height="14" />
+          <dc:Bounds x="1294" y="95" width="37" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_SaveOrder_di" bpmnElement="Flow_SaveOrder">
-        <di:waypoint x="1550" y="120" />
-        <di:waypoint x="1600" y="120" />
+        <di:waypoint x="1440" y="120" />
+        <di:waypoint x="1490" y="120" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_ConfirmedEnd_di" bpmnElement="Flow_ConfirmedEnd">
-        <di:waypoint x="1700" y="120" />
-        <di:waypoint x="1762" y="120" />
+        <di:waypoint x="1590" y="120" />
+        <di:waypoint x="1652" y="120" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_Cancel_di" bpmnElement="Flow_Cancel">
-        <di:waypoint x="1365" y="145" />
-        <di:waypoint x="1365" y="260" />
-        <di:waypoint x="1450" y="260" />
+        <di:waypoint x="1255" y="145" />
+        <di:waypoint x="1255" y="260" />
+        <di:waypoint x="1340" y="260" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="1372" y="243" width="32" height="14" />
+          <dc:Bounds x="1262" y="243" width="32" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_CancelToLog_di" bpmnElement="Flow_CancelToLog">
-        <di:waypoint x="1550" y="260" />
-        <di:waypoint x="1600" y="260" />
+        <di:waypoint x="1440" y="260" />
+        <di:waypoint x="1490" y="260" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_LogToEnd_di" bpmnElement="Flow_LogToEnd">
-        <di:waypoint x="1700" y="260" />
-        <di:waypoint x="1762" y="260" />
+        <di:waypoint x="1590" y="260" />
+        <di:waypoint x="1652" y="260" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_ErrToHandle_di" bpmnElement="Flow_ErrToHandle">
         <di:waypoint x="476" y="480" />
