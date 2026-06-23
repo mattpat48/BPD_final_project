@@ -79,6 +79,11 @@ const elements = {
   posterFormat: document.querySelector("#posterFormat"),
   cities: document.querySelector("#cities"),
   maxPrice: document.querySelector("#maxPrice"),
+  strategy: document.querySelector("#strategy"),
+  deferStrategy: document.querySelector("#deferStrategy"),
+  strategyStep: document.querySelector("#strategyStep"),
+  strategyTicketId: document.querySelector("#strategyTicketId"),
+  strategyChoice: document.querySelector("#strategyChoice"),
   requestId: document.querySelector("#requestId"),
   requestTimeline: document.querySelector("#requestTimeline"),
   decisionTimeline: document.querySelector("#decisionTimeline"),
@@ -289,6 +294,8 @@ function applyPreset(name) {
   elements.posterFormat.value = preset.posterFormat;
   elements.cities.value = preset.cities;
   elements.maxPrice.value = preset.maxPrice;
+  elements.strategy.value = preset.strategy || "MOST_EXPENSIVE";
+  elements.deferStrategy.checked = preset.deferStrategy === true;
 
   if (elements.presetHint) {
     elements.presetHint.textContent = `Esito atteso: ${preset.expect}`;
@@ -305,7 +312,9 @@ function requestPayloadFromForm() {
       .split(",")
       .map(city => city.trim())
       .filter(Boolean),
-    maxPrice: Number(elements.maxPrice.value)
+    maxPrice: Number(elements.maxPrice.value),
+    strategy: elements.strategy.value,
+    deferStrategy: elements.deferStrategy.checked
   };
 }
 
@@ -339,15 +348,29 @@ async function sendRequest(event) {
       method: "POST",
       body: JSON.stringify(payload)
     });
-    if (data.requestId) {
-      state.latestRequestId = data.requestId;
-      elements.requestId.value = data.requestId;
+
+    if (data.awaitingStrategy) {
+      // Deferred mode: reveal the strategy step and pre-fill it with the ticketId.
+      elements.strategyStep.hidden = false;
+      elements.strategyTicketId.value = data.ticketId || "";
+      elements.strategyChoice.value = payload.strategy || "MOST_EXPENSIVE";
+      showRequestResponse("Richiesta differita — scegli strategia", data, true, {
+        request: payload,
+        requestId: data.ticketId,
+        track: true
+      });
+    } else {
+      elements.strategyStep.hidden = true;
+      if (data.requestId) {
+        state.latestRequestId = data.requestId;
+        elements.requestId.value = data.requestId;
+      }
+      showRequestResponse("Richiesta inviata", data, true, {
+        request: payload,
+        requestId: data.requestId,
+        track: true
+      });
     }
-    showRequestResponse("Richiesta inviata", data, true, {
-      request: payload,
-      requestId: data.requestId,
-      track: true
-    });
     await refreshAllSecondary();
   } catch (error) {
     showRequestResponse("Errore richiesta", error.payload || error.message, false, {
@@ -386,6 +409,42 @@ async function sendDecision(decision, button) {
     showDecisionResponse("Errore decisione", error.payload || error.message, false, {
       request: { requestId, decision },
       requestId,
+      track: true
+    });
+  } finally {
+    setBusy(button, false);
+  }
+}
+
+async function sendStrategy(button) {
+  const ticketId = elements.strategyTicketId.value.trim();
+  const strategy = elements.strategyChoice.value;
+  if (!ticketId) {
+    showRequestResponse("ticketId mancante", { error: "Esegui prima una richiesta differita." }, false, { track: true });
+    return;
+  }
+
+  setBusy(button, true);
+  try {
+    const payload = { ticketId, strategy };
+    const data = await api("/api/strategy", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+    if (data.requestId) {
+      state.latestRequestId = data.requestId;
+      elements.requestId.value = data.requestId;
+    }
+    elements.strategyStep.hidden = true;
+    showRequestResponse(`Strategia applicata: ${strategy}`, data, true, {
+      request: payload,
+      requestId: data.requestId,
+      track: true
+    });
+    await refreshAllSecondary();
+  } catch (error) {
+    showRequestResponse("Errore strategia", error.payload || error.message, false, {
+      request: { ticketId, strategy },
       track: true
     });
   } finally {
@@ -551,6 +610,7 @@ document.querySelector("#refreshAll").addEventListener("click", refreshAll);
 document.querySelector("#refreshOrders").addEventListener("click", refreshOrders);
 document.querySelector("#refreshLogs").addEventListener("click", refreshLogs);
 document.querySelector("#loadTasks").addEventListener("click", event => refreshTasks(event.currentTarget));
+document.querySelector("#sendStrategy").addEventListener("click", event => sendStrategy(event.currentTarget));
 document.querySelector("#confirmDecision").addEventListener("click", event => sendDecision("confirm", event.currentTarget));
 document.querySelector("#cancelDecision").addEventListener("click", event => sendDecision("cancel", event.currentTarget));
 document.querySelector("#startStack").addEventListener("click", event => runProjectAction("/api/project/start", "start stack", event.currentTarget));

@@ -57,11 +57,44 @@
               Prezzo max per citta
               <input id="maxPrice" name="maxPrice" type="number" min="0" step="0.1">
             </label>
+            <label>
+              Strategia selezione zone
+              <select id="strategy" name="strategy">
+                <option value="MOST_EXPENSIVE">Piu costose (premium)</option>
+                <option value="MAX_ZONES">Piu zone possibili</option>
+                <option value="BALANCED_COVERAGE">Copertura bilanciata</option>
+                <option value="LOWEST_TOTAL">Spesa minima</option>
+              </select>
+            </label>
+            <label class="checkbox-label wide">
+              <input type="checkbox" id="deferStrategy" name="deferStrategy">
+              Scegli la strategia in un secondo step (richiesta differita)
+            </label>
             <div class="form-actions">
               <button type="submit">Invia richiesta</button>
               <button type="button" id="loadTasks" class="secondary">Task Camunda</button>
             </div>
           </form>
+
+          <div id="strategyStep" class="strategy-step" hidden>
+            <p class="eyebrow">Step strategia &mdash; richiesta in attesa</p>
+            <div class="decision-row">
+              <label>
+                Ticket ID
+                <input id="strategyTicketId" autocomplete="off" placeholder="Generato dalla richiesta differita">
+              </label>
+              <label>
+                Strategia
+                <select id="strategyChoice">
+                  <option value="MOST_EXPENSIVE">Piu costose (premium)</option>
+                  <option value="MAX_ZONES">Piu zone possibili</option>
+                  <option value="BALANCED_COVERAGE">Copertura bilanciata</option>
+                  <option value="LOWEST_TOTAL">Spesa minima</option>
+                </select>
+              </label>
+              <button id="sendStrategy" type="button">Invia strategia</button>
+            </div>
+          </div>
 
           <div class="process-response">
             <div>
