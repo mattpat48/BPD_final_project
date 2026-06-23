@@ -85,11 +85,17 @@ function selectForCity(cityZones, budget, strat) {
 }
 
 var selectedZones = [];
+var skippedCities = [];
 var totalPrice = 0.0;
 
 for (var c = 0; c < cities.size(); c++) {
     var city = cities.get(c);
     var picked = selectForCity(zonesForCity(city), maxPrice, strategyName);
+    // A requested city with no zone within the per-city budget is not an error: we keep
+    // serving the others and report it as a skipped city.
+    if (picked.length === 0) {
+        skippedCities.push(city);
+    }
     for (var p = 0; p < picked.length; p++) {
         selectedZones.push(picked[p]);
         totalPrice += picked[p].price;
@@ -111,4 +117,5 @@ execution.setVariable("selectedZonesJSON", selectedJSON);
 execution.setVariable("selectedZonesSpin", S(selectedJSON));
 execution.setVariable("totalPrice", totalPrice);
 execution.setVariable("usedStrategy", strategyName);
-system.out.println("=== Total: " + totalPrice + " | zones: " + selectedZones.length + " | strategy: " + strategyName + " ===");
+execution.setVariable("skippedCities", JSON.stringify(skippedCities));
+system.out.println("=== Total: " + totalPrice + " | zones: " + selectedZones.length + " | skipped: " + skippedCities + " | strategy: " + strategyName + " ===");

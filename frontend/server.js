@@ -221,6 +221,27 @@ async function listOrders() {
     .sort((a, b) => new Date(b.modifiedAt) - new Date(a.modifiedAt));
 }
 
+// Deletes every generated order file. Scoped to the .txt files inside the two known
+// order directories, so nothing outside data/orders can be removed.
+async function clearOrders() {
+  let deleted = 0;
+  for (const type of ["confirmed", "cancelled"]) {
+    const dir = path.join(ORDERS_DIR, type);
+    try {
+      const entries = await fs.readdir(dir, { withFileTypes: true });
+      await Promise.all(entries
+        .filter(entry => entry.isFile() && entry.name.endsWith(".txt"))
+        .map(async entry => {
+          await fs.unlink(path.join(dir, entry.name));
+          deleted += 1;
+        }));
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+    }
+  }
+  return { ok: true, deleted };
+}
+
 async function runProjectScript(scriptName) {
   const scriptPath = path.join(ROOT, scriptName);
   const args = ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", scriptPath];
@@ -284,6 +305,11 @@ async function handleApi(req, res, url) {
 
   if (req.method === "GET" && url.pathname === "/api/orders") {
     sendJson(res, 200, { orders: await listOrders() });
+    return;
+  }
+
+  if (req.method === "DELETE" && url.pathname === "/api/orders") {
+    sendJson(res, 200, await clearOrders());
     return;
   }
 

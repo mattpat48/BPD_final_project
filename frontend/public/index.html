@@ -14,21 +14,49 @@
           <h1>Dashboard di simulazione</h1>
         </div>
         <nav class="top-actions" aria-label="Azioni principali">
-          <a class="link-button" href="http://localhost:8080/camunda" target="_blank" rel="noreferrer">Camunda</a>
-          <button id="refreshAll" type="button">Aggiorna</button>
-          <button id="startStack" type="button">Start stack</button>
-          <button id="stopStack" type="button" class="danger">Stop stack</button>
+          <a class="link-button secondary" href="http://localhost:8080/camunda" target="_blank" rel="noreferrer">Apri Camunda</a>
+          <button id="refreshAll" type="button">Aggiorna tutto</button>
         </nav>
       </section>
 
       <section class="status-strip" id="healthGrid" aria-live="polite"></section>
 
+      <!-- Guida al flusso: rende esplicito che la decisione richiede prima una richiesta. -->
+      <ol class="flow-guide" aria-label="Come funziona il processo">
+        <li class="flow-step">
+          <span class="flow-num">1</span>
+          <div>
+            <strong>Invia una richiesta</strong>
+            <span>Ottieni un Request ID e le zone selezionate</span>
+          </div>
+        </li>
+        <li class="flow-arrow" aria-hidden="true">&rarr;</li>
+        <li class="flow-step">
+          <span class="flow-num">2</span>
+          <div>
+            <strong>Conferma o annulla</strong>
+            <span>Usando il Request ID del passo 1</span>
+          </div>
+        </li>
+        <li class="flow-arrow" aria-hidden="true">&rarr;</li>
+        <li class="flow-step">
+          <span class="flow-num">3</span>
+          <div>
+            <strong>Ordine generato</strong>
+            <span>Compare nella sezione "File generati"</span>
+          </div>
+        </li>
+      </ol>
+
       <section class="main-grid">
         <section class="panel request-panel">
           <div class="panel-title">
-            <div>
-              <p class="eyebrow">Simulatore processo</p>
-              <h2>Nuova richiesta affissione</h2>
+            <div class="title-with-step">
+              <span class="step-badge">1</span>
+              <div>
+                <p class="eyebrow">Simulatore processo</p>
+                <h2>Nuova richiesta affissione</h2>
+              </div>
             </div>
             <div class="preset-box">
               <select id="presetSelect" aria-label="Preset richiesta"></select>
@@ -60,58 +88,62 @@
             <label>
               Strategia selezione zone
               <select id="strategy" name="strategy">
-                <option value="GREEDY">Greedy &mdash; piu costose (default)</option>
+                <option value="">Predefinita &mdash; nessun parametro (usa greedy)</option>
+                <option value="GREEDY">Greedy &mdash; piu costose</option>
                 <option value="MAX_ZONES">Piu zone possibili</option>
                 <option value="BALANCED_COVERAGE">Copertura bilanciata</option>
                 <option value="LOWEST_TOTAL">Spesa minima</option>
               </select>
             </label>
-            <div class="form-actions">
+            <div class="form-actions single wide">
               <button type="submit">Invia richiesta</button>
-              <button type="button" id="loadTasks" class="secondary">Task Camunda</button>
             </div>
           </form>
 
           <div class="process-response">
             <div>
-              <p class="eyebrow">Risposte API</p>
+              <p class="eyebrow">Esito</p>
               <h2>Richieste inviate</h2>
             </div>
             <span id="requestStatus" class="pill">in attesa</span>
           </div>
           <div id="requestTimeline" class="response-timeline" aria-live="polite">
-            <p class="empty-state">Invia una richiesta per vedere qui dati inviati, request ID e risposta ricevuta.</p>
+            <p class="empty-state">Invia una richiesta per vedere qui l'esito, il Request ID e le zone selezionate.</p>
           </div>
-          <pre id="requestResponseOutput" hidden>{}</pre>
         </section>
 
         <section class="panel decision-panel">
           <div class="panel-title compact">
-            <div>
-              <p class="eyebrow">Decisione cliente</p>
-              <h2>Conferma o annulla</h2>
+            <div class="title-with-step">
+              <span class="step-badge">2</span>
+              <div>
+                <p class="eyebrow">Decisione cliente</p>
+                <h2>Conferma o annulla</h2>
+              </div>
             </div>
           </div>
+
+          <p id="decisionNote" class="decision-note"></p>
+
           <div class="decision-row">
             <label>
               Request ID
-              <input id="requestId" autocomplete="off" placeholder="Generato dalla richiesta">
+              <input id="requestId" autocomplete="off" placeholder="Generato dal passo 1">
             </label>
-            <button id="confirmDecision" type="button">Conferma</button>
-            <button id="cancelDecision" type="button" class="danger">Annulla</button>
+            <button id="confirmDecision" type="button" disabled>Conferma</button>
+            <button id="cancelDecision" type="button" class="danger" disabled>Annulla</button>
           </div>
 
           <div class="process-response">
             <div>
-              <p class="eyebrow">Risposte API</p>
+              <p class="eyebrow">Esito</p>
               <h2>Decisioni inviate</h2>
             </div>
             <span id="decisionStatus" class="pill">in attesa</span>
           </div>
           <div id="decisionTimeline" class="response-timeline" aria-live="polite">
-            <p class="empty-state">Conferma o annulla una richiesta per vedere qui dati inviati e risposta ricevuta.</p>
+            <p class="empty-state">Conferma o annulla una richiesta per vedere qui l'esito.</p>
           </div>
-          <pre id="decisionResponseOutput" hidden>{}</pre>
         </section>
       </section>
 
@@ -125,6 +157,7 @@
             <div class="orders-toolbar">
               <span id="ordersSummary" class="orders-summary">0 confermati - 0 cancellati</span>
               <button id="refreshOrders" type="button" class="secondary">Aggiorna ordini</button>
+              <button id="clearOrders" type="button" class="danger">Elimina tutti</button>
             </div>
           </div>
           <div class="orders-columns">
@@ -150,15 +183,18 @@
         <div class="panel logs-panel">
           <div class="panel-title compact">
             <div>
-              <p class="eyebrow">Log runtime</p>
-              <h2>Tail dei file log</h2>
+              <p class="eyebrow">Diagnostica</p>
+              <h2>Log runtime</h2>
             </div>
+            <button id="logsToggle" type="button" class="secondary" aria-expanded="false" aria-controls="logsContent">Mostra log</button>
+          </div>
+          <div id="logsContent" hidden>
             <div class="log-controls">
               <select id="logSelect" aria-label="Seleziona log"></select>
               <button id="refreshLogs" type="button" class="secondary">Aggiorna log</button>
             </div>
+            <pre id="logOutput"></pre>
           </div>
-          <pre id="logOutput"></pre>
         </div>
       </section>
     </main>

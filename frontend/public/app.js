@@ -4,7 +4,8 @@ const state = {
   requestEntries: [],
   decisionEntries: [],
   requestExpanded: false,
-  decisionExpanded: false
+  decisionExpanded: false,
+  logsVisible: false
 };
 
 // Each preset declares the form values and the outcome we expect, so the dashboard can
@@ -66,10 +67,16 @@ const presets = {
   }
 };
 
+// Human-readable labels for the zone-selection algorithms returned by the backend.
+const STRATEGY_LABELS = {
+  GREEDY: "Greedy — piu costose",
+  MAX_ZONES: "Piu zone possibili",
+  BALANCED_COVERAGE: "Copertura bilanciata",
+  LOWEST_TOTAL: "Spesa minima"
+};
+
 const elements = {
   healthGrid: document.querySelector("#healthGrid"),
-  requestResponseOutput: document.querySelector("#requestResponseOutput"),
-  decisionResponseOutput: document.querySelector("#decisionResponseOutput"),
   requestStatus: document.querySelector("#requestStatus"),
   decisionStatus: document.querySelector("#decisionStatus"),
   requestForm: document.querySelector("#requestForm"),
@@ -81,6 +88,9 @@ const elements = {
   maxPrice: document.querySelector("#maxPrice"),
   strategy: document.querySelector("#strategy"),
   requestId: document.querySelector("#requestId"),
+  decisionNote: document.querySelector("#decisionNote"),
+  confirmDecision: document.querySelector("#confirmDecision"),
+  cancelDecision: document.querySelector("#cancelDecision"),
   requestTimeline: document.querySelector("#requestTimeline"),
   decisionTimeline: document.querySelector("#decisionTimeline"),
   confirmedOrdersList: document.querySelector("#confirmedOrdersList"),
@@ -88,7 +98,11 @@ const elements = {
   confirmedCount: document.querySelector("#confirmedCount"),
   cancelledCount: document.querySelector("#cancelledCount"),
   ordersSummary: document.querySelector("#ordersSummary"),
+  clearOrders: document.querySelector("#clearOrders"),
+  logsToggle: document.querySelector("#logsToggle"),
+  logsContent: document.querySelector("#logsContent"),
   logSelect: document.querySelector("#logSelect"),
+  refreshLogs: document.querySelector("#refreshLogs"),
   logOutput: document.querySelector("#logOutput")
 };
 
@@ -112,13 +126,47 @@ function formatDateTime(value = new Date()) {
   });
 }
 
+function formatPrice(value) {
+  const n = Number(value);
+  if (value == null || value === "" || Number.isNaN(n)) return value == null ? "—" : String(value);
+  return "€ " + n.toFixed(2);
+}
+
+function strategyLabel(value) {
+  if (!value) return "—";
+  return STRATEGY_LABELS[value] || value;
+}
+
+function parseZones(json) {
+  if (!json) return [];
+  try {
+    const zones = JSON.parse(json);
+    return Array.isArray(zones) ? zones : [];
+  } catch {
+    return [];
+  }
+}
+
+// skippedCities arrives as a JSON string (e.g. '["Milan"]') or already as an array.
+function parseCityList(value) {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  try {
+    const list = JSON.parse(value);
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
 function getRequestId(payload, fallback = "") {
   if (!payload || typeof payload !== "object") return fallback;
   return payload.requestId || payload.id || fallback;
 }
 
-function addTimelineEntry(entries, label, payload, ok, context = {}) {
+function addTimelineEntry(entries, kind, label, payload, ok, context = {}) {
   entries.push({
+    kind,
     label,
     payload,
     ok,
@@ -127,6 +175,60 @@ function addTimelineEntry(entries, label, payload, ok, context = {}) {
     createdAt: new Date(),
     sequence: entries.length + 1
   });
+}
+
+// --- Friendly rendering helpers ---------------------------------------------
+
+function createFact(label, value, variant = "") {
+  const fact = document.createElement("div");
+  fact.className = "fact" + (variant ? ` ${variant}` : "");
+
+  const strong = document.createElement("strong");
+  strong.textContent = value == null || value === "" ? "—" : String(value);
+
+  const span = document.createElement("span");
+  span.textContent = label;
+
+  fact.append(strong, span);
+  return fact;
+}
+
+function createFactGrid(facts) {
+  const grid = document.createElement("div");
+  grid.className = "fact-grid";
+  facts.forEach(([label, value, variant]) => grid.appendChild(createFact(label, value, variant)));
+  return grid;
+}
+
+function createZoneList(zones) {
+  const wrap = document.createElement("div");
+  wrap.className = "zone-block";
+
+  const title = document.createElement("span");
+  title.className = "zone-block-title";
+  title.textContent = `Zone selezionate (${zones.length})`;
+  wrap.appendChild(title);
+
+  const list = document.createElement("div");
+  list.className = "zone-list";
+  zones.forEach(zone => {
+    const chip = document.createElement("span");
+    chip.className = "zone-chip";
+
+    const name = document.createElement("span");
+    name.className = "zone-chip-name";
+    name.textContent = `${zone.city || ""}${zone.name ? " · " + zone.name : ""}`.trim() || "Zona";
+
+    const price = document.createElement("span");
+    price.className = "zone-chip-price";
+    price.textContent = formatPrice(zone.price);
+
+    chip.append(name, price);
+    list.appendChild(chip);
+  });
+
+  wrap.appendChild(list);
+  return wrap;
 }
 
 function createJsonDetail(label, value) {
@@ -142,6 +244,72 @@ function createJsonDetail(label, value) {
 
   detail.append(title, pre);
   return detail;
+}
+
+function buildFriendly(entry) {
+  const wrap = document.createElement("div");
+  wrap.className = "friendly";
+
+  const payload = entry.payload;
+
+  // Error: surface the message (and business code) instead of a raw JSON dump.
+  if (!entry.ok) {
+    const box = document.createElement("div");
+    box.className = "friendly-error";
+
+    const msg = document.createElement("strong");
+    const text = payload && typeof payload === "object"
+      ? (payload.error || payload.message || "Errore")
+      : (typeof payload === "string" && payload ? payload : "Errore");
+    msg.textContent = text;
+    box.appendChild(msg);
+
+    if (payload && typeof payload === "object" && payload.errorCode) {
+      const code = document.createElement("span");
+      code.className = "code-badge";
+      code.textContent = payload.errorCode;
+      box.appendChild(code);
+    }
+
+    wrap.appendChild(box);
+    return wrap;
+  }
+
+  if (entry.kind === "request") {
+    wrap.appendChild(createFactGrid([
+      ["Request ID", payload.requestId || "—", "mono"],
+      ["Strategia usata", strategyLabel(payload.usedStrategy)],
+      ["Totale", formatPrice(payload.totalPrice), "accent"]
+    ]));
+    const skipped = parseCityList(payload.skippedCities);
+    if (skipped.length) {
+      const warn = document.createElement("div");
+      warn.className = "warn-banner";
+      warn.textContent = `⚠ Nessuna zona entro il budget per: ${skipped.join(", ")}`;
+      wrap.appendChild(warn);
+    }
+    const zones = parseZones(payload.selectedZonesJSON);
+    if (zones.length) wrap.appendChild(createZoneList(zones));
+    return wrap;
+  }
+
+  // decision
+  const decision = entry.request && entry.request.decision;
+  const confirmed = decision === "confirm";
+
+  const banner = document.createElement("div");
+  banner.className = `outcome-banner ${confirmed ? "ok" : "cancel"}`;
+  banner.textContent = confirmed ? "✓ Affissione confermata" : "✕ Richiesta annullata";
+  wrap.appendChild(banner);
+
+  if (confirmed) {
+    wrap.appendChild(createFactGrid([
+      ["Intestatario", payload.accountHolder || "—"],
+      ["N° fattura", payload.invoiceNumber || "—", "mono"],
+      ["Importo", formatPrice(payload.amountDue), "accent"]
+    ]));
+  }
+  return wrap;
 }
 
 function renderTimeline(container, entries, emptyText, titlePrefix, expandKey) {
@@ -182,7 +350,7 @@ function renderTimeline(container, entries, emptyText, titlePrefix, expandKey) {
     const meta = document.createElement("div");
     meta.className = "response-card-meta";
     meta.textContent = entry.requestId
-      ? `${formatDateTime(entry.createdAt)} - requestId ${entry.requestId}`
+      ? `${formatDateTime(entry.createdAt)} · requestId ${entry.requestId}`
       : formatDateTime(entry.createdAt);
 
     titleRow.append(title, status);
@@ -190,8 +358,21 @@ function renderTimeline(container, entries, emptyText, titlePrefix, expandKey) {
 
     const body = document.createElement("div");
     body.className = "response-card-body";
-    if (entry.request) body.appendChild(createJsonDetail("Dati inviati", entry.request));
-    body.appendChild(createJsonDetail("Risposta ricevuta", entry.payload));
+    body.appendChild(buildFriendly(entry));
+
+    // Raw request/response stay available, but collapsed, for the technical view.
+    const details = document.createElement("details");
+    details.className = "tech-details";
+    const summary = document.createElement("summary");
+    summary.textContent = "Dettagli tecnici (JSON)";
+    details.appendChild(summary);
+
+    const techGrid = document.createElement("div");
+    techGrid.className = "tech-grid";
+    if (entry.request) techGrid.appendChild(createJsonDetail("Dati inviati", entry.request));
+    techGrid.appendChild(createJsonDetail("Risposta ricevuta", entry.payload));
+    details.appendChild(techGrid);
+    body.appendChild(details);
 
     card.append(header, body);
     container.appendChild(card);
@@ -220,13 +401,12 @@ function setStatus(element, label, ok) {
 
 function showRequestResponse(label, payload, ok = true, context = {}) {
   setStatus(elements.requestStatus, label, ok);
-  elements.requestResponseOutput.textContent = formatJson(payload);
   if (context.track) {
-    addTimelineEntry(state.requestEntries, label, payload, ok, context);
+    addTimelineEntry(state.requestEntries, "request", label, payload, ok, context);
     renderTimeline(
       elements.requestTimeline,
       state.requestEntries,
-      "Invia una richiesta per vedere qui dati inviati, request ID e risposta ricevuta.",
+      "Invia una richiesta per vedere qui l'esito, il Request ID e le zone selezionate.",
       "Richiesta",
       "requestExpanded"
     );
@@ -235,17 +415,28 @@ function showRequestResponse(label, payload, ok = true, context = {}) {
 
 function showDecisionResponse(label, payload, ok = true, context = {}) {
   setStatus(elements.decisionStatus, label, ok);
-  elements.decisionResponseOutput.textContent = formatJson(payload);
   if (context.track) {
-    addTimelineEntry(state.decisionEntries, label, payload, ok, context);
+    addTimelineEntry(state.decisionEntries, "decision", label, payload, ok, context);
     renderTimeline(
       elements.decisionTimeline,
       state.decisionEntries,
-      "Conferma o annulla una richiesta per vedere qui dati inviati e risposta ricevuta.",
+      "Conferma o annulla una richiesta per vedere qui l'esito.",
       "Decisione",
       "decisionExpanded"
     );
   }
+}
+
+// Keep step 2 locked until a Request ID exists, and explain why in plain language.
+function updateDecisionState() {
+  const id = elements.requestId.value.trim();
+  const ready = id.length > 0;
+  elements.confirmDecision.disabled = !ready;
+  elements.cancelDecision.disabled = !ready;
+  elements.decisionNote.classList.toggle("ready", ready);
+  elements.decisionNote.textContent = ready
+    ? `Request ID "${id}" pronto: ora puoi confermare o annullare l'affissione.`
+    : "Prima invia una richiesta (passo 1): otterrai un Request ID, che comparira qui in automatico. Solo allora potrai confermare o annullare.";
 }
 
 async function api(path, options = {}) {
@@ -290,7 +481,8 @@ function applyPreset(name) {
   elements.posterFormat.value = preset.posterFormat;
   elements.cities.value = preset.cities;
   elements.maxPrice.value = preset.maxPrice;
-  elements.strategy.value = preset.strategy || "GREEDY";
+  // Default to the empty option => no `strategy` field is sent (backend uses greedy).
+  elements.strategy.value = preset.strategy || "";
 
   if (elements.presetHint) {
     elements.presetHint.textContent = `Esito atteso: ${preset.expect}`;
@@ -300,16 +492,20 @@ function applyPreset(name) {
 }
 
 function requestPayloadFromForm() {
-  return {
+  const payload = {
     username: elements.username.value.trim(),
     posterFormat: elements.posterFormat.value,
     cities: elements.cities.value
       .split(",")
       .map(city => city.trim())
       .filter(Boolean),
-    maxPrice: Number(elements.maxPrice.value),
-    strategy: elements.strategy.value
+    maxPrice: Number(elements.maxPrice.value)
   };
+  // Include `strategy` only when explicitly chosen. The empty option omits the field
+  // entirely, so the backend falls back to its default GREEDY algorithm.
+  const strategy = elements.strategy.value;
+  if (strategy) payload.strategy = strategy;
+  return payload;
 }
 
 async function refreshHealth() {
@@ -346,6 +542,7 @@ async function sendRequest(event) {
     if (data.requestId) {
       state.latestRequestId = data.requestId;
       elements.requestId.value = data.requestId;
+      updateDecisionState();
     }
     showRequestResponse("Richiesta inviata", data, true, {
       request: payload,
@@ -484,6 +681,22 @@ async function refreshOrders() {
   }
 }
 
+async function clearOrders(button) {
+  const ok = window.confirm("Eliminare TUTTI i file generati (confermati e cancellati)? L'operazione non e reversibile.");
+  if (!ok) return;
+
+  setBusy(button, true);
+  try {
+    const data = await api("/api/orders", { method: "DELETE" });
+    elements.ordersSummary.textContent = `${data.deleted || 0} file eliminati`;
+    await refreshOrders();
+  } catch (error) {
+    elements.ordersSummary.textContent = `Errore eliminazione: ${error.message}`;
+  } finally {
+    setBusy(button, false);
+  }
+}
+
 async function refreshLogs() {
   try {
     const data = await api("/api/logs");
@@ -514,57 +727,41 @@ function renderSelectedLog() {
   elements.logOutput.textContent = log ? log.content || "(log vuoto)" : "Nessun log trovato.";
 }
 
-async function refreshTasks(button) {
-  setBusy(button, true);
-  try {
-    const [tasks, instances] = await Promise.all([
-      api("/api/camunda/tasks"),
-      api("/api/camunda/process-instances")
-    ]);
-    showRequestResponse("Stato Camunda", { tasks, processInstances: instances }, true);
-  } catch (error) {
-    showRequestResponse("Errore Camunda", error.payload || error.message, false);
-  } finally {
-    setBusy(button, false);
-  }
-}
-
-async function runProjectAction(path, label, button) {
-  setBusy(button, true);
-  try {
-    const data = await api(path, { method: "POST", body: "{}" });
-    showRequestResponse(label, data, data.ok);
-    await refreshAllSecondary();
-    await refreshHealth();
-  } catch (error) {
-    showRequestResponse(`errore ${label}`, error.payload || error.message, false);
-  } finally {
-    setBusy(button, false);
-  }
+function toggleLogs() {
+  state.logsVisible = !state.logsVisible;
+  elements.logsContent.hidden = !state.logsVisible;
+  elements.logsToggle.setAttribute("aria-expanded", String(state.logsVisible));
+  elements.logsToggle.textContent = state.logsVisible ? "Nascondi log" : "Mostra log";
+  if (state.logsVisible) refreshLogs();
 }
 
 async function refreshAllSecondary() {
-  await Promise.all([refreshOrders(), refreshLogs()]);
+  const tasks = [refreshOrders()];
+  if (state.logsVisible) tasks.push(refreshLogs());
+  await Promise.all(tasks);
 }
 
 async function refreshAll() {
-  await Promise.all([refreshHealth(), refreshOrders(), refreshLogs()]);
+  const tasks = [refreshHealth(), refreshOrders()];
+  if (state.logsVisible) tasks.push(refreshLogs());
+  await Promise.all(tasks);
 }
 
 document.querySelector("#refreshAll").addEventListener("click", refreshAll);
 document.querySelector("#refreshOrders").addEventListener("click", refreshOrders);
-document.querySelector("#refreshLogs").addEventListener("click", refreshLogs);
-document.querySelector("#loadTasks").addEventListener("click", event => refreshTasks(event.currentTarget));
-document.querySelector("#confirmDecision").addEventListener("click", event => sendDecision("confirm", event.currentTarget));
-document.querySelector("#cancelDecision").addEventListener("click", event => sendDecision("cancel", event.currentTarget));
-document.querySelector("#startStack").addEventListener("click", event => runProjectAction("/api/project/start", "start stack", event.currentTarget));
-document.querySelector("#stopStack").addEventListener("click", event => runProjectAction("/api/project/stop", "stop stack", event.currentTarget));
+elements.clearOrders.addEventListener("click", event => clearOrders(event.currentTarget));
+elements.refreshLogs.addEventListener("click", refreshLogs);
+elements.logsToggle.addEventListener("click", toggleLogs);
+elements.confirmDecision.addEventListener("click", event => sendDecision("confirm", event.currentTarget));
+elements.cancelDecision.addEventListener("click", event => sendDecision("cancel", event.currentTarget));
+elements.requestId.addEventListener("input", updateDecisionState);
 elements.logSelect.addEventListener("change", renderSelectedLog);
 elements.presetSelect.addEventListener("change", event => applyPreset(event.target.value));
 elements.requestForm.addEventListener("submit", sendRequest);
 
 populatePresetOptions();
 applyPreset("standard");
+updateDecisionState();
 refreshAll();
 setInterval(refreshHealth, 15000);
 setInterval(refreshAllSecondary, 12000);

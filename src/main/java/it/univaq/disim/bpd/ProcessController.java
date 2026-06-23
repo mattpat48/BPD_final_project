@@ -88,6 +88,8 @@ public class ProcessController {
             responseData.put("selectedZonesJSON", vars.get("selectedZonesJSON"));
             responseData.put("totalPrice", vars.get("totalPrice"));
             responseData.put("usedStrategy", vars.get("usedStrategy"));
+            // List (JSON string) of requested cities that had no affordable zone within budget.
+            responseData.put("skippedCities", vars.get("skippedCities"));
 
             return ResponseEntity.ok(responseData);
 
