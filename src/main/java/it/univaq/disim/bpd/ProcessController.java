@@ -12,7 +12,8 @@ import org.camunda.bpm.engine.RuntimeService;
 import org.camunda.bpm.engine.HistoryService;
 import org.camunda.bpm.engine.history.HistoricVariableInstance;
 import org.camunda.bpm.engine.runtime.MessageCorrelationResult;
-import org.camunda.bpm.engine.runtime.ProcessInstanceWithVariables;
+import org.camunda.bpm.engine.runtime.MessageCorrelationResultWithVariables;
+import org.camunda.bpm.engine.runtime.ProcessInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -64,18 +65,24 @@ public class ProcessController {
                 variables.put("strategy", input.getStrategy());
             }
 
-            ProcessInstanceWithVariables instance = runtimeService.createProcessInstanceByKey("PublicBillposting")
+            // Start the process by correlating the "StartRequest" message to its message start
+            // event. correlateWithResultAndVariables(true) runs the flow synchronously up to the
+            // wait state (or to the end, if the error sub-process fires) and returns the variables,
+            // so we can still read requestId/totalPrice/selectedZones in the same call.
+            MessageCorrelationResultWithVariables result = runtimeService.createMessageCorrelation("StartRequest")
                     .setVariables(variables)
-                    .executeWithVariablesInReturn();
+                    .correlateWithResultAndVariables(true);
 
-            Map<String, Object> vars = instance.getVariables();
+            ProcessInstance processInstance = result.getProcessInstance();
+            String processInstanceId = processInstance != null ? processInstance.getId() : null;
+            Map<String, Object> vars = result.getVariables();
 
             // The process may have ended through the error sub-process: in that case a validation
             // task recorded an errorCode. We translate it into a meaningful HTTP status instead of
             // returning a meaningless requestId (or a raw 500).
-            Object errorCode = readVar(vars, instance.getId(), "errorCode");
+            Object errorCode = readVar(vars, processInstanceId, "errorCode");
             if (errorCode != null) {
-                Object errorMessage = readVar(vars, instance.getId(), "errorMessage");
+                Object errorMessage = readVar(vars, processInstanceId, "errorMessage");
                 HttpStatus status = mapBusinessError(errorCode.toString());
                 Map<String, Object> errorBody = new HashMap<>();
                 errorBody.put("error", errorMessage != null ? errorMessage : errorCode);
@@ -122,6 +129,9 @@ public class ProcessController {
     private Object readVar(Map<String, Object> vars, String processInstanceId, String name) {
         if (vars != null && vars.get(name) != null) {
             return vars.get(name);
+        }
+        if (processInstanceId == null) {
+            return null;
         }
         HistoricVariableInstance hv = historyService.createHistoricVariableInstanceQuery()
                 .processInstanceId(processInstanceId)
