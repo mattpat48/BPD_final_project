@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BPD Dashboard</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="topbar">
+        <div>
+          <p class="eyebrow">BPD Camunda Project</p>
+          <h1>Dashboard di simulazione</h1>
+        </div>
+        <nav class="top-actions" aria-label="Azioni principali">
+          <a class="link-button" href="http://localhost:8080/camunda" target="_blank" rel="noreferrer">Camunda</a>
+          <button id="refreshAll" type="button">Aggiorna</button>
+          <button id="startStack" type="button">Start stack</button>
+          <button id="stopStack" type="button" class="danger">Stop stack</button>
+        </nav>
+      </section>
+
+      <section class="status-strip" id="healthGrid" aria-live="polite"></section>
+
+      <section class="main-grid">
+        <section class="panel request-panel">
+          <div class="panel-title">
+            <div>
+              <p class="eyebrow">Simulatore processo</p>
+              <h2>Nuova richiesta affissione</h2>
+            </div>
+            <select id="presetSelect" aria-label="Preset richiesta">
+              <option value="standard">L'Aquila + Rome</option>
+              <option value="milan">Milan budget alto</option>
+              <option value="tight">Budget stretto</option>
+              <option value="invalid">Input non valido</option>
+            </select>
+          </div>
+
+          <form id="requestForm" class="form-grid">
+            <label>
+              Username
+              <input id="username" name="username" autocomplete="off">
+            </label>
+            <label>
+              Formato manifesto
+              <select id="posterFormat" name="posterFormat">
+                <option value="60x80">60x80</option>
+                <option value="100x140">100x140</option>
+                <option value="140x200">140x200</option>
+              </select>
+            </label>
+            <label class="wide">
+              Citta, separate da virgola
+              <input id="cities" name="cities" autocomplete="off">
+            </label>
+            <label>
+              Prezzo max per citta
+              <input id="maxPrice" name="maxPrice" type="number" min="0" step="0.1">
+            </label>
+            <div class="form-actions">
+              <button type="submit">Invia richiesta</button>
+              <button type="button" id="loadTasks" class="secondary">Task Camunda</button>
+            </div>
+          </form>
+
+          <div class="process-response">
+            <div>
+              <p class="eyebrow">Risposte API</p>
+              <h2>Richieste inviate</h2>
+            </div>
+            <span id="requestStatus" class="pill">in attesa</span>
+          </div>
+          <div id="requestTimeline" class="response-timeline" aria-live="polite">
+            <p class="empty-state">Invia una richiesta per vedere qui dati inviati, request ID e risposta ricevuta.</p>
+          </div>
+          <pre id="requestResponseOutput" hidden>{}</pre>
+        </section>
+
+        <section class="panel decision-panel">
+          <div class="panel-title compact">
+            <div>
+              <p class="eyebrow">Decisione cliente</p>
+              <h2>Conferma o annulla</h2>
+            </div>
+          </div>
+          <div class="decision-row">
+            <label>
+              Request ID
+              <input id="requestId" autocomplete="off" placeholder="Generato dalla richiesta">
+            </label>
+            <button id="confirmDecision" type="button">Conferma</button>
+            <button id="cancelDecision" type="button" class="danger">Annulla</button>
+          </div>
+
+          <div class="process-response">
+            <div>
+              <p class="eyebrow">Risposte API</p>
+              <h2>Decisioni inviate</h2>
+            </div>
+            <span id="decisionStatus" class="pill">in attesa</span>
+          </div>
+          <div id="decisionTimeline" class="response-timeline" aria-live="polite">
+            <p class="empty-state">Conferma o annulla una richiesta per vedere qui dati inviati e risposta ricevuta.</p>
+          </div>
+          <pre id="decisionResponseOutput" hidden>{}</pre>
+        </section>
+      </section>
+
+      <section class="orders-band">
+        <div class="panel orders-panel">
+          <div class="panel-title compact">
+            <div>
+              <p class="eyebrow">Ordini</p>
+              <h2>File generati</h2>
+            </div>
+            <div class="orders-toolbar">
+              <span id="ordersSummary" class="orders-summary">0 confermati - 0 cancellati</span>
+              <button id="refreshOrders" type="button" class="secondary">Aggiorna ordini</button>
+            </div>
+          </div>
+          <div class="orders-columns">
+            <section class="orders-column confirmed-column" aria-labelledby="confirmedOrdersTitle">
+              <div class="orders-column-title">
+                <h3 id="confirmedOrdersTitle">Confermati</h3>
+                <span id="confirmedCount" class="count-badge">0</span>
+              </div>
+              <div id="confirmedOrdersList" class="orders-list"></div>
+            </section>
+            <section class="orders-column cancelled-column" aria-labelledby="cancelledOrdersTitle">
+              <div class="orders-column-title">
+                <h3 id="cancelledOrdersTitle">Cancellati</h3>
+                <span id="cancelledCount" class="count-badge danger-count">0</span>
+              </div>
+              <div id="cancelledOrdersList" class="orders-list"></div>
+            </section>
+          </div>
+        </div>
+      </section>
+
+      <section class="logs-band">
+        <div class="panel logs-panel">
+          <div class="panel-title compact">
+            <div>
+              <p class="eyebrow">Log runtime</p>
+              <h2>Tail dei file log</h2>
+            </div>
+            <div class="log-controls">
+              <select id="logSelect" aria-label="Seleziona log"></select>
+              <button id="refreshLogs" type="button" class="secondary">Aggiorna log</button>
+            </div>
+          </div>
+          <pre id="logOutput"></pre>
+        </div>
+      </section>
+    </main>
+
+    <template id="orderTemplate">
+      <article class="order-item">
+        <div class="order-main">
+          <strong></strong>
+          <span></span>
+        </div>
+        <div class="order-details"></div>
+        <pre></pre>
+      </article>
+    </template>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

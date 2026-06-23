@@ -1,0 +1,12 @@
+{
+  "name": "bpd-frotnend-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local dashboard for the BPD Camunda project.",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
