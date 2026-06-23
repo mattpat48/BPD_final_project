@@ -159,6 +159,39 @@ pre {
   text-transform: uppercase;
 }
 
+.preset-box {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  min-width: 240px;
+}
+
+.preset-hint {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: right;
+  padding: 4px 10px;
+  border-radius: 8px;
+}
+
+.preset-hint.is-ok {
+  color: var(--ok);
+  background: var(--ok-bg);
+}
+
+.preset-hint.is-error {
+  color: var(--danger);
+  background: var(--danger-bg);
+}
+
+.timeline-toggle {
+  margin-top: 4px;
+  align-self: flex-start;
+  font-size: 13px;
+}
+
 .top-actions {
   flex-wrap: wrap;
   justify-content: flex-end;

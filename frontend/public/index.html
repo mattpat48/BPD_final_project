@@ -30,12 +30,10 @@
               <p class="eyebrow">Simulatore processo</p>
               <h2>Nuova richiesta affissione</h2>
             </div>
-            <select id="presetSelect" aria-label="Preset richiesta">
-              <option value="standard">L'Aquila + Rome</option>
-              <option value="milan">Milan budget alto</option>
-              <option value="tight">Budget stretto</option>
-              <option value="invalid">Input non valido</option>
-            </select>
+            <div class="preset-box">
+              <select id="presetSelect" aria-label="Preset richiesta"></select>
+              <p id="presetHint" class="preset-hint"></p>
+            </div>
           </div>
 
           <form id="requestForm" class="form-grid">

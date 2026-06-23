@@ -2,29 +2,63 @@ const state = {
   logs: [],
   latestRequestId: "",
   requestEntries: [],
-  decisionEntries: []
+  decisionEntries: [],
+  requestExpanded: false,
+  decisionExpanded: false
 };
 
+// Each preset declares the form values and the outcome we expect, so the dashboard can
+// demonstrate, side by side, both the happy path and every managed error scenario.
 const presets = {
   standard: {
+    label: "Valido · L'Aquila + Rome",
+    expect: "OK 200 — richiesta valida, requestId generato",
+    kind: "ok",
     username: "mariorossi",
     posterFormat: "60x80",
     cities: "L'Aquila, Rome",
     maxPrice: "20"
   },
   milan: {
+    label: "Valido · Milan budget alto",
+    expect: "OK 200 — seleziona piu zone fino al budget",
+    kind: "ok",
     username: "mariorossi",
     posterFormat: "60x80",
     cities: "Milan",
     maxPrice: "130"
   },
-  tight: {
+  userNotFound: {
+    label: "Errore · Utente inesistente",
+    expect: "404 Not Found — USER_NOT_FOUND",
+    kind: "error",
+    username: "ghostuser",
+    posterFormat: "60x80",
+    cities: "Rome",
+    maxPrice: "50"
+  },
+  cityNotServed: {
+    label: "Errore · Citta non servita",
+    expect: "422 Unprocessable — NO_AFFORDABLE_ZONES",
+    kind: "error",
     username: "mariorossi",
     posterFormat: "60x80",
-    cities: "Rome, Milan",
-    maxPrice: "10"
+    cities: "Napoli",
+    maxPrice: "50"
+  },
+  budgetTooLow: {
+    label: "Errore · Budget troppo basso",
+    expect: "422 Unprocessable — NO_AFFORDABLE_ZONES",
+    kind: "error",
+    username: "mariorossi",
+    posterFormat: "60x80",
+    cities: "Milan",
+    maxPrice: "1"
   },
   invalid: {
+    label: "Errore · Input non valido",
+    expect: "400 Bad Request — validazione API (campi mancanti)",
+    kind: "error",
     username: "",
     posterFormat: "60x80",
     cities: "",
@@ -40,6 +74,7 @@ const elements = {
   decisionStatus: document.querySelector("#decisionStatus"),
   requestForm: document.querySelector("#requestForm"),
   presetSelect: document.querySelector("#presetSelect"),
+  presetHint: document.querySelector("#presetHint"),
   username: document.querySelector("#username"),
   posterFormat: document.querySelector("#posterFormat"),
   cities: document.querySelector("#cities"),
@@ -108,7 +143,7 @@ function createJsonDetail(label, value) {
   return detail;
 }
 
-function renderTimeline(container, entries, emptyText, titlePrefix) {
+function renderTimeline(container, entries, emptyText, titlePrefix, expandKey) {
   container.innerHTML = "";
 
   if (!entries.length) {
@@ -119,7 +154,12 @@ function renderTimeline(container, entries, emptyText, titlePrefix) {
     return;
   }
 
-  entries.forEach(entry => {
+  // Newest first; by default only the latest entry is shown, the rest stay behind the toggle.
+  const expanded = expandKey ? state[expandKey] : true;
+  const ordered = entries.slice().reverse();
+  const visible = expanded ? ordered : ordered.slice(0, 1);
+
+  visible.forEach(entry => {
     const card = document.createElement("article");
     card.className = `response-card ${entry.ok ? "success" : "error"}`;
 
@@ -155,6 +195,20 @@ function renderTimeline(container, entries, emptyText, titlePrefix) {
     card.append(header, body);
     container.appendChild(card);
   });
+
+  if (expandKey && entries.length > 1) {
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "secondary timeline-toggle";
+    toggle.textContent = expanded
+      ? "Mostra solo l'ultima"
+      : `Mostra storico (${entries.length - 1} precedenti)`;
+    toggle.addEventListener("click", () => {
+      state[expandKey] = !state[expandKey];
+      renderTimeline(container, entries, emptyText, titlePrefix, expandKey);
+    });
+    container.appendChild(toggle);
+  }
 }
 
 function setStatus(element, label, ok) {
@@ -172,7 +226,8 @@ function showRequestResponse(label, payload, ok = true, context = {}) {
       elements.requestTimeline,
       state.requestEntries,
       "Invia una richiesta per vedere qui dati inviati, request ID e risposta ricevuta.",
-      "Richiesta"
+      "Richiesta",
+      "requestExpanded"
     );
   }
 }
@@ -186,7 +241,8 @@ function showDecisionResponse(label, payload, ok = true, context = {}) {
       elements.decisionTimeline,
       state.decisionEntries,
       "Conferma o annulla una richiesta per vedere qui dati inviati e risposta ricevuta.",
-      "Decisione"
+      "Decisione",
+      "decisionExpanded"
     );
   }
 }
@@ -217,12 +273,28 @@ async function api(path, options = {}) {
   return payload;
 }
 
+function populatePresetOptions() {
+  elements.presetSelect.innerHTML = "";
+  Object.entries(presets).forEach(([value, preset]) => {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = preset.label;
+    elements.presetSelect.appendChild(option);
+  });
+}
+
 function applyPreset(name) {
   const preset = presets[name] || presets.standard;
   elements.username.value = preset.username;
   elements.posterFormat.value = preset.posterFormat;
   elements.cities.value = preset.cities;
   elements.maxPrice.value = preset.maxPrice;
+
+  if (elements.presetHint) {
+    elements.presetHint.textContent = `Esito atteso: ${preset.expect}`;
+    elements.presetHint.classList.toggle("is-error", preset.kind === "error");
+    elements.presetHint.classList.toggle("is-ok", preset.kind !== "error");
+  }
 }
 
 function requestPayloadFromForm() {
@@ -487,6 +559,7 @@ elements.logSelect.addEventListener("change", renderSelectedLog);
 elements.presetSelect.addEventListener("change", event => applyPreset(event.target.value));
 elements.requestForm.addEventListener("submit", sendRequest);
 
+populatePresetOptions();
 applyPreset("standard");
 refreshAll();
 setInterval(refreshHealth, 15000);

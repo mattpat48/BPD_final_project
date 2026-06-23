@@ -49,13 +49,26 @@ public class ProcessController {
                     .setVariables(variables)
                     .executeWithVariablesInReturn();
 
-            Object selectedZones = instance.getVariables().get("selectedZonesJSON");
-            Object totalPrice = instance.getVariables().get("totalPrice");
-            Object requestId = instance.getVariables().get("requestId");
+            Map<String, Object> vars = instance.getVariables();
+
+            // The process may have ended through the error sub-process: in that case a validation
+            // task recorded an errorCode. We translate it into a meaningful HTTP status instead of
+            // returning a meaningless requestId (or a raw 500).
+            Object errorCode = readVar(vars, instance.getId(), "errorCode");
+            if (errorCode != null) {
+                Object errorMessage = readVar(vars, instance.getId(), "errorMessage");
+                HttpStatus status = mapBusinessError(errorCode.toString());
+                Map<String, Object> errorBody = new HashMap<>();
+                errorBody.put("error", errorMessage != null ? errorMessage : errorCode);
+                errorBody.put("errorCode", errorCode);
+                return ResponseEntity.status(status).body(errorBody);
+            }
+
+            Object selectedZones = vars.get("selectedZonesJSON");
+            Object totalPrice = vars.get("totalPrice");
+            Object requestId = vars.get("requestId");
 
             Map<String, Object> responseData = new HashMap<>();
-            //responseData.put("message", "Zone selection and availability check completed. Waiting for decision.");
-            //responseData.put("processInstanceId", instance.getId());
             responseData.put("requestId", requestId);
             responseData.put("selectedZonesJSON", selectedZones);
             responseData.put("totalPrice", totalPrice);
@@ -63,9 +76,58 @@ public class ProcessController {
             return ResponseEntity.ok(responseData);
 
         } catch (Exception e) {
+            // Technical faults (e.g. an external service is down) surface here as exceptions,
+            // never as a modeled BPMN error. We map connectivity problems to 503 and keep the
+            // generic 500 only as a last resort, so the user is never left with a raw stack trace.
+            if (isConnectivityFault(e)) {
+                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                        .body(Collections.singletonMap("error", "An external service is currently unavailable. Please retry later."));
+            }
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Collections.singletonMap("error", "Error during process execution: " + e.getMessage()));
         }
+    }
+
+    /** Maps a business error code raised by a BPMN validation task to an HTTP status. */
+    private HttpStatus mapBusinessError(String errorCode) {
+        switch (errorCode) {
+            case "USER_NOT_FOUND":        return HttpStatus.NOT_FOUND;             // 404
+            case "NO_AFFORDABLE_ZONES":   return HttpStatus.UNPROCESSABLE_ENTITY;  // 422
+            case "NOT_AVAILABLE":         return HttpStatus.CONFLICT;              // 409
+            case "NO_ZONES_AVAILABLE":    return HttpStatus.BAD_GATEWAY;           // 502
+            case "POSTING_SERVICE_ERROR": return HttpStatus.BAD_GATEWAY;           // 502
+            default:                      return HttpStatus.INTERNAL_SERVER_ERROR; // 500
+        }
+    }
+
+    /** Reads a variable from the returned map, falling back to history if the instance has ended. */
+    private Object readVar(Map<String, Object> vars, String processInstanceId, String name) {
+        if (vars != null && vars.get(name) != null) {
+            return vars.get(name);
+        }
+        HistoricVariableInstance hv = historyService.createHistoricVariableInstanceQuery()
+                .processInstanceId(processInstanceId)
+                .variableName(name)
+                .singleResult();
+        return hv != null ? hv.getValue() : null;
+    }
+
+    /** Walks the exception chain looking for a connection/connector failure. */
+    private boolean isConnectivityFault(Throwable e) {
+        Throwable cur = e;
+        while (cur != null) {
+            String name = cur.getClass().getName();
+            String msg = cur.getMessage() != null ? cur.getMessage() : "";
+            if (name.contains("ConnectException")
+                    || name.contains("ConnectorException")
+                    || name.contains("UnknownHostException")
+                    || msg.contains("Connection refused")
+                    || msg.contains("Connect to ")) {
+                return true;
+            }
+            cur = cur.getCause();
+        }
+        return false;
     }
 
     @PostMapping("/decision")

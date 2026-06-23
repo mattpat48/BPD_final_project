@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.48.0">
   <bpmn:process id="PublicBillposting" name="Public Billposting Process" isExecutable="true" camunda:historyTimeToLive="1">
-    
+
     <bpmn:startEvent id="StartEvent_1" name="Request Received">
       <bpmn:outgoing>Flow_1</bpmn:outgoing>
     </bpmn:startEvent>
-    
+
     <bpmn:serviceTask id="Task_GetUserData" name="Get User Data">
       <bpmn:extensionElements>
         <camunda:connector>
@@ -14,8 +14,11 @@
               <camunda:script scriptFormat="freemarker">http://localhost:9080/user/${username}</camunda:script>
             </camunda:inputParameter>
             <camunda:inputParameter name="method">GET</camunda:inputParameter>
-            <camunda:outputParameter name="userData">
-              <camunda:script scriptFormat="javascript">S(response)</camunda:script>
+            <camunda:outputParameter name="userResponse">
+              <camunda:script scriptFormat="javascript">response</camunda:script>
+            </camunda:outputParameter>
+            <camunda:outputParameter name="userStatusCode">
+              <camunda:script scriptFormat="javascript">statusCode</camunda:script>
             </camunda:outputParameter>
           </camunda:inputOutput>
           <camunda:connectorId>http-connector</camunda:connectorId>
@@ -24,7 +27,12 @@
       <bpmn:incoming>Flow_1</bpmn:incoming>
       <bpmn:outgoing>Flow_2</bpmn:outgoing>
     </bpmn:serviceTask>
-    
+
+    <bpmn:scriptTask id="Task_ValidateUser" name="Validate User" scriptFormat="javascript" camunda:resource="classpath:scripts/validateUser.js">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_3</bpmn:outgoing>
+    </bpmn:scriptTask>
+
     <bpmn:serviceTask id="Task_GetZoneList" name="Get Zone List">
       <bpmn:extensionElements>
         <camunda:connector>
@@ -40,15 +48,15 @@
           <camunda:connectorId>http-connector</camunda:connectorId>
         </camunda:connector>
       </bpmn:extensionElements>
-      <bpmn:incoming>Flow_2</bpmn:incoming>
-      <bpmn:outgoing>Flow_3</bpmn:outgoing>
-    </bpmn:serviceTask>
-    
-    <bpmn:scriptTask id="Task_SelectZones" name="Select Zones (Greedy)" scriptFormat="javascript" camunda:resource="classpath:scripts/selectZones.js">
       <bpmn:incoming>Flow_3</bpmn:incoming>
       <bpmn:outgoing>Flow_4</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:scriptTask id="Task_SelectZones" name="Select Zones (Greedy)" scriptFormat="javascript" camunda:resource="classpath:scripts/selectZones.js">
+      <bpmn:incoming>Flow_4</bpmn:incoming>
+      <bpmn:outgoing>Flow_5</bpmn:outgoing>
     </bpmn:scriptTask>
-    
+
     <bpmn:serviceTask id="Task_CheckAvailability" name="Check Availability (SOAP)">
       <bpmn:extensionElements>
         <camunda:connector>
@@ -72,27 +80,32 @@
           <camunda:connectorId>soap-http-connector</camunda:connectorId>
         </camunda:connector>
       </bpmn:extensionElements>
-      <bpmn:incoming>Flow_4</bpmn:incoming>
-      <bpmn:outgoing>Flow_5</bpmn:outgoing>
-    </bpmn:serviceTask>
-    
-    <bpmn:intermediateCatchEvent id="Event_WaitForDecision" name="Wait for user decision">
       <bpmn:incoming>Flow_5</bpmn:incoming>
       <bpmn:outgoing>Flow_6</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:scriptTask id="Task_ValidateAvailability" name="Validate Availability" scriptFormat="javascript" camunda:resource="classpath:scripts/validateAvailability.js">
+      <bpmn:incoming>Flow_6</bpmn:incoming>
+      <bpmn:outgoing>Flow_7</bpmn:outgoing>
+    </bpmn:scriptTask>
+
+    <bpmn:intermediateCatchEvent id="Event_WaitForDecision" name="Wait for user decision">
+      <bpmn:incoming>Flow_7</bpmn:incoming>
+      <bpmn:outgoing>Flow_8</bpmn:outgoing>
       <bpmn:messageEventDefinition id="MessageEventDefinition_1" messageRef="Message_Decision" />
     </bpmn:intermediateCatchEvent>
-    
+
     <bpmn:exclusiveGateway id="Gateway_Decision" name="Decision?">
-      <bpmn:incoming>Flow_6</bpmn:incoming>
+      <bpmn:incoming>Flow_8</bpmn:incoming>
       <bpmn:outgoing>Flow_Confirm</bpmn:outgoing>
       <bpmn:outgoing>Flow_Cancel</bpmn:outgoing>
     </bpmn:exclusiveGateway>
-    
+
     <!-- Confirm Branch -->
     <bpmn:sequenceFlow id="Flow_Confirm" name="confirm" sourceRef="Gateway_Decision" targetRef="Task_ConfirmRequest">
       <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${decision == 'confirm'}</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
-    
+
     <bpmn:serviceTask id="Task_ConfirmRequest" name="Confirm Request (SOAP)">
       <bpmn:extensionElements>
         <camunda:connector>
@@ -122,12 +135,12 @@
       <bpmn:incoming>Flow_Confirm</bpmn:incoming>
       <bpmn:outgoing>Flow_SaveOrder</bpmn:outgoing>
     </bpmn:serviceTask>
-    
+
     <bpmn:scriptTask id="Task_SaveOrderFile" name="Save Order Details" scriptFormat="javascript" camunda:resource="classpath:scripts/saveOrderFile.js">
       <bpmn:incoming>Flow_SaveOrder</bpmn:incoming>
       <bpmn:outgoing>Flow_ConfirmedEnd</bpmn:outgoing>
     </bpmn:scriptTask>
-    
+
     <bpmn:endEvent id="EndEvent_Confirmed" name="Order Confirmed">
       <bpmn:incoming>Flow_ConfirmedEnd</bpmn:incoming>
     </bpmn:endEvent>
@@ -166,78 +179,125 @@
     <bpmn:endEvent id="EndEvent_Cancelled" name="Order Cancelled">
       <bpmn:incoming>Flow_LogToEnd</bpmn:incoming>
     </bpmn:endEvent>
-    
-    <!-- Sequences -->
+
+    <!-- Error handling event sub-process: catches any BpmnError raised by the validation
+         tasks (USER_NOT_FOUND, NO_ZONES_AVAILABLE, NO_AFFORDABLE_ZONES, NOT_AVAILABLE,
+         POSTING_SERVICE_ERROR). It is interrupting, so it stops the main flow and ends the
+         instance cleanly instead of leaving a technical incident. -->
+    <bpmn:subProcess id="SubProcess_Error" name="Error Handling" triggeredByEvent="true">
+      <bpmn:startEvent id="ErrorStart" name="Business error" isInterrupting="true">
+        <bpmn:outgoing>Flow_ErrToHandle</bpmn:outgoing>
+        <bpmn:errorEventDefinition id="ErrorEventDef_1" />
+      </bpmn:startEvent>
+      <bpmn:scriptTask id="Task_HandleError" name="Record Error" scriptFormat="javascript" camunda:resource="classpath:scripts/handleError.js">
+        <bpmn:incoming>Flow_ErrToHandle</bpmn:incoming>
+        <bpmn:outgoing>Flow_HandleToEnd</bpmn:outgoing>
+      </bpmn:scriptTask>
+      <bpmn:endEvent id="EndEvent_Error" name="Process Ended (Error)">
+        <bpmn:incoming>Flow_HandleToEnd</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="Flow_ErrToHandle" sourceRef="ErrorStart" targetRef="Task_HandleError" />
+      <bpmn:sequenceFlow id="Flow_HandleToEnd" sourceRef="Task_HandleError" targetRef="EndEvent_Error" />
+    </bpmn:subProcess>
+
+    <!-- Main sequence -->
     <bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_1" targetRef="Task_GetUserData" />
-    <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_GetUserData" targetRef="Task_GetZoneList" />
-    <bpmn:sequenceFlow id="Flow_3" sourceRef="Task_GetZoneList" targetRef="Task_SelectZones" />
-    <bpmn:sequenceFlow id="Flow_4" sourceRef="Task_SelectZones" targetRef="Task_CheckAvailability" />
-    <bpmn:sequenceFlow id="Flow_5" sourceRef="Task_CheckAvailability" targetRef="Event_WaitForDecision" />
-    <bpmn:sequenceFlow id="Flow_6" sourceRef="Event_WaitForDecision" targetRef="Gateway_Decision" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_GetUserData" targetRef="Task_ValidateUser" />
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="Task_ValidateUser" targetRef="Task_GetZoneList" />
+    <bpmn:sequenceFlow id="Flow_4" sourceRef="Task_GetZoneList" targetRef="Task_SelectZones" />
+    <bpmn:sequenceFlow id="Flow_5" sourceRef="Task_SelectZones" targetRef="Task_CheckAvailability" />
+    <bpmn:sequenceFlow id="Flow_6" sourceRef="Task_CheckAvailability" targetRef="Task_ValidateAvailability" />
+    <bpmn:sequenceFlow id="Flow_7" sourceRef="Task_ValidateAvailability" targetRef="Event_WaitForDecision" />
+    <bpmn:sequenceFlow id="Flow_8" sourceRef="Event_WaitForDecision" targetRef="Gateway_Decision" />
     <bpmn:sequenceFlow id="Flow_SaveOrder" sourceRef="Task_ConfirmRequest" targetRef="Task_SaveOrderFile" />
     <bpmn:sequenceFlow id="Flow_ConfirmedEnd" sourceRef="Task_SaveOrderFile" targetRef="EndEvent_Confirmed" />
     <bpmn:sequenceFlow id="Flow_CancelToLog" sourceRef="Task_CancelRequest" targetRef="Task_LogCancellation" />
     <bpmn:sequenceFlow id="Flow_LogToEnd" sourceRef="Task_LogCancellation" targetRef="EndEvent_Cancelled" />
-    
+
   </bpmn:process>
-  
+
   <bpmn:message id="Message_Decision" name="DecisionMessage" />
-  
+
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="PublicBillposting">
       <bpmndi:BPMNShape id="StartEvent_1_di" bpmnElement="StartEvent_1">
         <dc:Bounds x="152" y="102" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="129" y="145" width="83" height="14" /></bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Task_GetUserData_di" bpmnElement="Task_GetUserData">
         <dc:Bounds x="240" y="80" width="100" height="80" />
       </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ValidateUser_di" bpmnElement="Task_ValidateUser">
+        <dc:Bounds x="390" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Task_GetZoneList_di" bpmnElement="Task_GetZoneList">
-        <dc:Bounds x="400" y="80" width="100" height="80" />
+        <dc:Bounds x="540" y="80" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Task_SelectZones_di" bpmnElement="Task_SelectZones">
-        <dc:Bounds x="560" y="80" width="100" height="80" />
+        <dc:Bounds x="690" y="80" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Task_CheckAvailability_di" bpmnElement="Task_CheckAvailability">
-        <dc:Bounds x="720" y="80" width="100" height="80" />
+        <dc:Bounds x="840" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ValidateAvailability_di" bpmnElement="Task_ValidateAvailability">
+        <dc:Bounds x="990" y="80" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Event_WaitForDecision_di" bpmnElement="Event_WaitForDecision">
-        <dc:Bounds x="882" y="102" width="36" height="36" />
+        <dc:Bounds x="1142" y="102" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1120" y="145" width="80" height="27" /></bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Gateway_Decision_di" bpmnElement="Gateway_Decision" isMarkerVisible="true">
-        <dc:Bounds x="975" y="95" width="50" height="50" />
+        <dc:Bounds x="1230" y="95" width="50" height="50" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="975" y="71" width="49" height="14" />
+          <dc:Bounds x="1232" y="71" width="49" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
-      
+
       <!-- Confirm Branch Shapes -->
       <bpmndi:BPMNShape id="Task_ConfirmRequest_di" bpmnElement="Task_ConfirmRequest">
-        <dc:Bounds x="1090" y="80" width="100" height="80" />
+        <dc:Bounds x="1340" y="80" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Task_SaveOrderFile_di" bpmnElement="Task_SaveOrderFile">
-        <dc:Bounds x="1240" y="80" width="100" height="80" />
+        <dc:Bounds x="1490" y="80" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="EndEvent_Confirmed_di" bpmnElement="EndEvent_Confirmed">
-        <dc:Bounds x="1402" y="102" width="36" height="36" />
+        <dc:Bounds x="1652" y="102" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="1379" y="138" width="82" height="14" />
+          <dc:Bounds x="1629" y="145" width="82" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
 
       <!-- Cancel Branch Shapes -->
       <bpmndi:BPMNShape id="Task_CancelRequest_di" bpmnElement="Task_CancelRequest">
-        <dc:Bounds x="1090" y="220" width="100" height="80" />
+        <dc:Bounds x="1340" y="220" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Task_LogCancellation_di" bpmnElement="Task_LogCancellation">
-        <dc:Bounds x="1240" y="220" width="100" height="80" />
+        <dc:Bounds x="1490" y="220" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="EndEvent_Cancelled_di" bpmnElement="EndEvent_Cancelled">
-        <dc:Bounds x="1402" y="242" width="36" height="36" />
+        <dc:Bounds x="1652" y="242" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="1380" y="278" width="81" height="14" />
+          <dc:Bounds x="1630" y="285" width="81" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
-      
+
+      <!-- Error Sub-Process Shapes -->
+      <bpmndi:BPMNShape id="SubProcess_Error_di" bpmnElement="SubProcess_Error" isExpanded="true">
+        <dc:Bounds x="400" y="400" width="420" height="160" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ErrorStart_di" bpmnElement="ErrorStart">
+        <dc:Bounds x="440" y="462" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="430" y="505" width="62" height="14" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_HandleError_di" bpmnElement="Task_HandleError">
+        <dc:Bounds x="540" y="440" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_Error_di" bpmnElement="EndEvent_Error">
+        <dc:Bounds x="710" y="462" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="688" y="505" width="82" height="27" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
       <!-- Edges -->
       <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">
         <di:waypoint x="188" y="120" />
@@ -245,54 +305,70 @@
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_2_di" bpmnElement="Flow_2">
         <di:waypoint x="340" y="120" />
-        <di:waypoint x="400" y="120" />
+        <di:waypoint x="390" y="120" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_3_di" bpmnElement="Flow_3">
-        <di:waypoint x="500" y="120" />
-        <di:waypoint x="560" y="120" />
+        <di:waypoint x="490" y="120" />
+        <di:waypoint x="540" y="120" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_4_di" bpmnElement="Flow_4">
-        <di:waypoint x="660" y="120" />
-        <di:waypoint x="720" y="120" />
+        <di:waypoint x="640" y="120" />
+        <di:waypoint x="690" y="120" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_5_di" bpmnElement="Flow_5">
-        <di:waypoint x="820" y="120" />
-        <di:waypoint x="882" y="120" />
+        <di:waypoint x="790" y="120" />
+        <di:waypoint x="840" y="120" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_6_di" bpmnElement="Flow_6">
-        <di:waypoint x="918" y="120" />
-        <di:waypoint x="975" y="120" />
+        <di:waypoint x="940" y="120" />
+        <di:waypoint x="990" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_7_di" bpmnElement="Flow_7">
+        <di:waypoint x="1090" y="120" />
+        <di:waypoint x="1142" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_8_di" bpmnElement="Flow_8">
+        <di:waypoint x="1178" y="120" />
+        <di:waypoint x="1230" y="120" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_Confirm_di" bpmnElement="Flow_Confirm">
-        <di:waypoint x="1025" y="120" />
-        <di:waypoint x="1090" y="120" />
+        <di:waypoint x="1280" y="120" />
+        <di:waypoint x="1340" y="120" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="1039" y="95" width="37" height="14" />
+          <dc:Bounds x="1294" y="95" width="37" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_SaveOrder_di" bpmnElement="Flow_SaveOrder">
-        <di:waypoint x="1190" y="120" />
-        <di:waypoint x="1240" y="120" />
+        <di:waypoint x="1440" y="120" />
+        <di:waypoint x="1490" y="120" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_ConfirmedEnd_di" bpmnElement="Flow_ConfirmedEnd">
-        <di:waypoint x="1340" y="120" />
-        <di:waypoint x="1402" y="120" />
+        <di:waypoint x="1590" y="120" />
+        <di:waypoint x="1652" y="120" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_Cancel_di" bpmnElement="Flow_Cancel">
-        <di:waypoint x="1000" y="145" />
-        <di:waypoint x="1000" y="260" />
-        <di:waypoint x="1090" y="260" />
+        <di:waypoint x="1255" y="145" />
+        <di:waypoint x="1255" y="260" />
+        <di:waypoint x="1340" y="260" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="1014" y="243" width="32" height="14" />
+          <dc:Bounds x="1262" y="243" width="32" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_CancelToLog_di" bpmnElement="Flow_CancelToLog">
-        <di:waypoint x="1190" y="260" />
-        <di:waypoint x="1240" y="260" />
+        <di:waypoint x="1440" y="260" />
+        <di:waypoint x="1490" y="260" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_LogToEnd_di" bpmnElement="Flow_LogToEnd">
-        <di:waypoint x="1340" y="260" />
-        <di:waypoint x="1402" y="260" />
+        <di:waypoint x="1590" y="260" />
+        <di:waypoint x="1652" y="260" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ErrToHandle_di" bpmnElement="Flow_ErrToHandle">
+        <di:waypoint x="476" y="480" />
+        <di:waypoint x="540" y="480" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_HandleToEnd_di" bpmnElement="Flow_HandleToEnd">
+        <di:waypoint x="640" y="480" />
+        <di:waypoint x="710" y="480" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>
