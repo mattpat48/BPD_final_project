@@ -9,6 +9,24 @@ var strategyName = (typeof strategy !== "undefined" && strategy != null && Strin
     : "GREEDY";
 system.out.println("=== Zone Selection | strategy=" + strategyName + " | user=" + username + " ===");
 
+// Optional per-city budget overrides (JSON map city -> price). Cities not listed here fall
+// back to the global `maxPrice` (which remains the budget PER CITY).
+var perCityBudget = {};
+try {
+    if (typeof maxPricesJSON !== "undefined" && maxPricesJSON != null && String(maxPricesJSON).length > 0) {
+        perCityBudget = JSON.parse(maxPricesJSON);
+    }
+} catch (e) {
+    perCityBudget = {};
+}
+function budgetFor(city) {
+    var key = String(city);
+    if (perCityBudget != null && perCityBudget[key] != null) {
+        return Number(perCityBudget[key]);
+    }
+    return Number(maxPrice);
+}
+
 // Guard: the zones service must have returned a parseable, non-empty list.
 var zonesList;
 try {
@@ -90,8 +108,9 @@ var totalPrice = 0.0;
 
 for (var c = 0; c < cities.size(); c++) {
     var city = cities.get(c);
-    var picked = selectForCity(zonesForCity(city), maxPrice, strategyName);
-    // A requested city with no zone within the per-city budget is not an error: we keep
+    var cityBudget = budgetFor(city);
+    var picked = selectForCity(zonesForCity(city), cityBudget, strategyName);
+    // A requested city with no zone within its budget is not an error: we keep
     // serving the others and report it as a skipped city.
     if (picked.length === 0) {
         skippedCities.push(city);
@@ -100,12 +119,12 @@ for (var c = 0; c < cities.size(); c++) {
         selectedZones.push(picked[p]);
         totalPrice += picked[p].price;
     }
-    system.out.println("- " + city + " | budget " + maxPrice + " -> " + picked.length + " zone");
+    system.out.println("- " + city + " | budget " + cityBudget + " -> " + picked.length + " zone");
 }
 
 // Guard: at least one zone must have been selected, otherwise the request cannot be fulfilled.
 if (selectedZones.length === 0) {
-    var noPickMsg = "No zones could be selected for the given cities and budget (maxPrice=" + maxPrice + " per city, strategy=" + strategyName + ").";
+    var noPickMsg = "No zones could be selected for the given cities and budgets (strategy=" + strategyName + ").";
     system.out.println("[VALIDATION] " + noPickMsg);
     execution.setVariable("errorCode", "NO_AFFORDABLE_ZONES");
     execution.setVariable("errorMessage", noPickMsg);

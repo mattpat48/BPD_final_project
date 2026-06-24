@@ -86,6 +86,8 @@ const elements = {
   posterFormat: document.querySelector("#posterFormat"),
   cities: document.querySelector("#cities"),
   maxPrice: document.querySelector("#maxPrice"),
+  perCityToggle: document.querySelector("#perCityToggle"),
+  perCityContainer: document.querySelector("#perCityContainer"),
   strategy: document.querySelector("#strategy"),
   requestId: document.querySelector("#requestId"),
   decisionNote: document.querySelector("#decisionNote"),
@@ -489,6 +491,63 @@ function applyPreset(name) {
     elements.presetHint.classList.toggle("is-error", preset.kind === "error");
     elements.presetHint.classList.toggle("is-ok", preset.kind !== "error");
   }
+
+  // Keep the per-city inputs in sync with the preset's cities.
+  renderPerCityInputs();
+}
+
+// --- Per-city max price overrides -------------------------------------------
+function citiesFromForm() {
+  return elements.cities.value.split(",").map(city => city.trim()).filter(Boolean);
+}
+
+// Re-render the per-city inputs to match the cities currently typed, preserving any value
+// the user already entered for a city that is still present.
+function renderPerCityInputs() {
+  const enabled = elements.perCityToggle.checked;
+  elements.perCityContainer.hidden = !enabled;
+  if (!enabled) {
+    elements.perCityContainer.innerHTML = "";
+    return;
+  }
+
+  // Snapshot existing values so they survive the re-render.
+  const previous = {};
+  elements.perCityContainer.querySelectorAll("input[data-city]").forEach(input => {
+    if (input.value !== "") previous[input.dataset.city] = input.value;
+  });
+
+  elements.perCityContainer.innerHTML = "";
+  const cities = citiesFromForm();
+
+  if (!cities.length) {
+    const hint = document.createElement("p");
+    hint.className = "per-city-empty";
+    hint.textContent = "Inserisci prima una o piu citta qui sopra.";
+    elements.perCityContainer.appendChild(hint);
+    return;
+  }
+
+  cities.forEach(city => {
+    const label = document.createElement("label");
+    label.className = "per-city-item";
+
+    const name = document.createElement("span");
+    name.className = "per-city-name";
+    name.textContent = city;
+    name.title = city;
+
+    const input = document.createElement("input");
+    input.type = "number";
+    input.min = "0";
+    input.step = "0.1";
+    input.dataset.city = city;
+    input.placeholder = "usa globale";
+    if (previous[city] != null) input.value = previous[city];
+
+    label.append(name, input);
+    elements.perCityContainer.appendChild(label);
+  });
 }
 
 function requestPayloadFromForm() {
@@ -501,6 +560,19 @@ function requestPayloadFromForm() {
       .filter(Boolean),
     maxPrice: Number(elements.maxPrice.value)
   };
+  // When the per-city toggle is on, collect the overrides (city -> price). Cities left blank
+  // keep using the global maxPrice, so we only send the ones the user actually filled in.
+  if (elements.perCityToggle.checked) {
+    const maxPrices = {};
+    elements.perCityContainer.querySelectorAll("input[data-city]").forEach(input => {
+      const raw = input.value.trim();
+      if (raw !== "") {
+        const value = Number(raw);
+        if (!Number.isNaN(value)) maxPrices[input.dataset.city] = value;
+      }
+    });
+    if (Object.keys(maxPrices).length) payload.maxPrices = maxPrices;
+  }
   // Include `strategy` only when explicitly chosen. The empty option omits the field
   // entirely, so the backend falls back to its default GREEDY algorithm.
   const strategy = elements.strategy.value;
@@ -758,6 +830,10 @@ elements.requestId.addEventListener("input", updateDecisionState);
 elements.logSelect.addEventListener("change", renderSelectedLog);
 elements.presetSelect.addEventListener("change", event => applyPreset(event.target.value));
 elements.requestForm.addEventListener("submit", sendRequest);
+elements.perCityToggle.addEventListener("change", renderPerCityInputs);
+elements.cities.addEventListener("input", () => {
+  if (elements.perCityToggle.checked) renderPerCityInputs();
+});
 
 populatePresetOptions();
 applyPreset("standard");

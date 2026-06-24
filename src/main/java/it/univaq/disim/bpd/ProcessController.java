@@ -45,10 +45,21 @@ public class ProcessController {
     public ResponseEntity<?> requestAvailability(@RequestBody AvailabilityRequestDto input) {
 
         if (input.getUsername() == null || input.getUsername().isEmpty() ||
+            input.getPosterFormat() == null || input.getPosterFormat().trim().isEmpty() ||
             input.getCities() == null || input.getCities().isEmpty() ||
             input.getMaxPrice() == null || input.getMaxPrice() <= 0) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Collections.singletonMap("error", "Missing data: username, cities list, and maxPrice (greater than 0) are mandatory."));
+                    .body(Collections.singletonMap("error", "Missing data: username, posterFormat, cities list, and maxPrice (greater than 0) are mandatory."));
+        }
+
+        // Optional per-city budget overrides: when supplied, every entry must be a positive number.
+        if (input.getMaxPrices() != null) {
+            for (Map.Entry<String, Double> e : input.getMaxPrices().entrySet()) {
+                if (e.getValue() == null || e.getValue() <= 0) {
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                            .body(Collections.singletonMap("error", "Per-city max price for '" + e.getKey() + "' must be a number greater than 0."));
+                }
+            }
         }
 
         // An inline strategy, when supplied, must be one of the known algorithms.
@@ -65,6 +76,11 @@ public class ProcessController {
             variables.put("posterFormat", input.getPosterFormat());
             variables.put("cities", input.getCities());
             variables.put("maxPrice", input.getMaxPrice());
+            // Per-city budget overrides are passed as a JSON map (city -> price); the zone-selection
+            // script falls back to the global maxPrice for any city not listed here.
+            if (input.getMaxPrices() != null && !input.getMaxPrices().isEmpty()) {
+                variables.put("maxPricesJSON", JSON.writeValueAsString(input.getMaxPrices()));
+            }
             if (input.getStrategy() != null && !input.getStrategy().isEmpty()) {
                 variables.put("strategy", input.getStrategy());
             }
@@ -244,6 +260,7 @@ public class ProcessController {
         private String posterFormat;
         private List<String> cities;
         private Double maxPrice;
+        private Map<String, Double> maxPrices;   // optional: per-city budget overrides (city -> price)
         private String strategy;        // optional: pick the algorithm inline (defaults to GREEDY)
 
         public String getUsername() { return username; }
@@ -257,6 +274,9 @@ public class ProcessController {
 
         public Double getMaxPrice() { return maxPrice; }
         public void setMaxPrice(Double maxPrice) { this.maxPrice = maxPrice; }
+
+        public Map<String, Double> getMaxPrices() { return maxPrices; }
+        public void setMaxPrices(Map<String, Double> maxPrices) { this.maxPrices = maxPrices; }
 
         public String getStrategy() { return strategy; }
         public void setStrategy(String strategy) { this.strategy = strategy; }
