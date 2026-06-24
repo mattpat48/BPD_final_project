@@ -11,11 +11,15 @@
       <section class="topbar">
         <div>
           <p class="eyebrow">BPD Camunda Project</p>
-          <h1>Dashboard di simulazione</h1>
+          <h1 data-i18n="app.title">Dashboard di simulazione</h1>
         </div>
-        <nav class="top-actions" aria-label="Azioni principali">
-          <a class="link-button secondary" href="http://localhost:8080/camunda" target="_blank" rel="noreferrer">Apri Camunda</a>
-          <button id="refreshAll" type="button">Aggiorna tutto</button>
+        <nav class="top-actions" aria-label="Actions">
+          <div class="lang-switch" role="group" aria-label="Language">
+            <button id="langIt" type="button" class="lang-btn">IT</button>
+            <button id="langEn" type="button" class="lang-btn">EN</button>
+          </div>
+          <a class="link-button secondary" href="http://localhost:8080/camunda" target="_blank" rel="noreferrer" data-i18n="btn.openCamunda">Apri Camunda</a>
+          <button id="refreshAll" type="button" data-i18n="btn.refreshAll">Aggiorna tutto</button>
         </nav>
       </section>
 
@@ -26,24 +30,24 @@
         <li class="flow-step">
           <span class="flow-num">1</span>
           <div>
-            <strong>Invia una richiesta</strong>
-            <span>Ottieni un Request ID e le zone selezionate</span>
+            <strong data-i18n="flow.step1.title">Invia una richiesta</strong>
+            <span data-i18n="flow.step1.desc">Ottieni un Request ID e le zone selezionate</span>
           </div>
         </li>
         <li class="flow-arrow" aria-hidden="true">&rarr;</li>
         <li class="flow-step">
           <span class="flow-num">2</span>
           <div>
-            <strong>Conferma o annulla</strong>
-            <span>Usando il Request ID del passo 1</span>
+            <strong data-i18n="flow.step2.title">Conferma o annulla</strong>
+            <span data-i18n="flow.step2.desc">Usando il Request ID del passo 1</span>
           </div>
         </li>
         <li class="flow-arrow" aria-hidden="true">&rarr;</li>
         <li class="flow-step">
           <span class="flow-num">3</span>
           <div>
-            <strong>Ordine generato</strong>
-            <span>Compare nella sezione "File generati"</span>
+            <strong data-i18n="flow.step3.title">Ordine generato</strong>
+            <span data-i18n="flow.step3.desc">Compare nella sezione "File generati"</span>
           </div>
         </li>
       </ol>
@@ -54,23 +58,23 @@
             <div class="title-with-step">
               <span class="step-badge">1</span>
               <div>
-                <p class="eyebrow">Simulatore processo</p>
-                <h2>Nuova richiesta affissione</h2>
+                <p class="eyebrow" data-i18n="req.eyebrow">Simulatore processo</p>
+                <h2 data-i18n="req.title">Nuova richiesta affissione</h2>
               </div>
             </div>
             <div class="preset-box">
-              <select id="presetSelect" aria-label="Preset richiesta"></select>
+              <select id="presetSelect" aria-label="Preset"></select>
               <p id="presetHint" class="preset-hint"></p>
             </div>
           </div>
 
           <form id="requestForm" class="form-grid">
             <label>
-              Username
+              <span data-i18n="f.username">Username</span>
               <input id="username" name="username" autocomplete="off">
             </label>
             <label>
-              Formato manifesto
+              <span data-i18n="f.posterFormat">Formato manifesto</span>
               <select id="posterFormat" name="posterFormat">
                 <option value="60x80">60x80</option>
                 <option value="100x140">100x140</option>
@@ -78,44 +82,44 @@
               </select>
             </label>
             <label class="wide">
-              Citta, separate da virgola
+              <span data-i18n="f.cities">Citta, separate da virgola</span>
               <input id="cities" name="cities" autocomplete="off">
             </label>
             <label>
-              Prezzo max per citta
+              <span data-i18n="f.maxPrice">Prezzo max per citta</span>
               <input id="maxPrice" name="maxPrice" type="number" min="0" step="0.1">
             </label>
             <div class="wide per-city-block">
               <label class="checkbox-row">
                 <input type="checkbox" id="perCityToggle">
-                <span>Prezzo massimo diverso per singola citta (sovrascrive il prezzo globale)</span>
+                <span data-i18n="f.perCity">Prezzo massimo diverso per singola citta (sovrascrive il prezzo globale)</span>
               </label>
               <div id="perCityContainer" class="per-city-grid" hidden></div>
             </div>
             <label>
-              Strategia selezione zone
+              <span data-i18n="f.strategy">Strategia selezione zone</span>
               <select id="strategy" name="strategy">
-                <option value="">Predefinita &mdash; nessun parametro (usa greedy)</option>
-                <option value="GREEDY">Greedy &mdash; piu costose</option>
-                <option value="MAX_ZONES">Piu zone possibili</option>
-                <option value="BALANCED_COVERAGE">Copertura bilanciata</option>
-                <option value="LOWEST_TOTAL">Spesa minima</option>
+                <option value="" data-i18n="strat.default">Predefinita &mdash; nessun parametro (usa greedy)</option>
+                <option value="GREEDY" data-i18n="strat.greedy">Greedy &mdash; piu costose</option>
+                <option value="MAX_ZONES" data-i18n="strat.maxzones">Piu zone possibili</option>
+                <option value="BALANCED_COVERAGE" data-i18n="strat.balanced">Copertura bilanciata</option>
+                <option value="LOWEST_TOTAL" data-i18n="strat.lowest">Spesa minima</option>
               </select>
             </label>
             <div class="form-actions single wide">
-              <button type="submit">Invia richiesta</button>
+              <button type="submit" data-i18n="btn.sendRequest">Invia richiesta</button>
             </div>
           </form>
 
           <div class="process-response">
             <div>
-              <p class="eyebrow">Esito</p>
-              <h2>Richieste inviate</h2>
+              <p class="eyebrow" data-i18n="common.outcome">Esito</p>
+              <h2 data-i18n="req.sentTitle">Richieste inviate</h2>
             </div>
-            <span id="requestStatus" class="pill">in attesa</span>
+            <span id="requestStatus" class="pill" data-i18n="status.waiting">in attesa</span>
           </div>
           <div id="requestTimeline" class="response-timeline" aria-live="polite">
-            <p class="empty-state">Invia una richiesta per vedere qui l'esito, il Request ID e le zone selezionate.</p>
+            <p class="empty-state" data-i18n="req.empty">Invia una richiesta per vedere qui l'esito, il Request ID e le zone selezionate.</p>
           </div>
         </section>
 
@@ -124,8 +128,8 @@
             <div class="title-with-step">
               <span class="step-badge">2</span>
               <div>
-                <p class="eyebrow">Decisione cliente</p>
-                <h2>Conferma o annulla</h2>
+                <p class="eyebrow" data-i18n="dec.eyebrow">Decisione cliente</p>
+                <h2 data-i18n="dec.title">Conferma o annulla</h2>
               </div>
             </div>
           </div>
@@ -134,22 +138,22 @@
 
           <div class="decision-row">
             <label>
-              Request ID
-              <input id="requestId" autocomplete="off" placeholder="Generato dal passo 1">
+              <span data-i18n="f.requestId">Request ID</span>
+              <input id="requestId" autocomplete="off" placeholder="Generato dal passo 1" data-i18n-ph="ph.requestId">
             </label>
-            <button id="confirmDecision" type="button" disabled>Conferma</button>
-            <button id="cancelDecision" type="button" class="danger" disabled>Annulla</button>
+            <button id="confirmDecision" type="button" disabled data-i18n="btn.confirm">Conferma</button>
+            <button id="cancelDecision" type="button" class="danger" disabled data-i18n="btn.cancel">Annulla</button>
           </div>
 
           <div class="process-response">
             <div>
-              <p class="eyebrow">Esito</p>
-              <h2>Decisioni inviate</h2>
+              <p class="eyebrow" data-i18n="common.outcome">Esito</p>
+              <h2 data-i18n="dec.sentTitle">Decisioni inviate</h2>
             </div>
-            <span id="decisionStatus" class="pill">in attesa</span>
+            <span id="decisionStatus" class="pill" data-i18n="status.waiting">in attesa</span>
           </div>
           <div id="decisionTimeline" class="response-timeline" aria-live="polite">
-            <p class="empty-state">Conferma o annulla una richiesta per vedere qui l'esito.</p>
+            <p class="empty-state" data-i18n="dec.empty">Conferma o annulla una richiesta per vedere qui l'esito.</p>
           </div>
         </section>
       </section>
@@ -158,26 +162,26 @@
         <div class="panel orders-panel">
           <div class="panel-title compact">
             <div>
-              <p class="eyebrow">Ordini</p>
-              <h2>File generati</h2>
+              <p class="eyebrow" data-i18n="orders.eyebrow">Ordini</p>
+              <h2 data-i18n="orders.title">File generati</h2>
             </div>
             <div class="orders-toolbar">
               <span id="ordersSummary" class="orders-summary">0 confermati - 0 cancellati</span>
-              <button id="refreshOrders" type="button" class="secondary">Aggiorna ordini</button>
-              <button id="clearOrders" type="button" class="danger">Elimina tutti</button>
+              <button id="refreshOrders" type="button" class="secondary" data-i18n="btn.refreshOrders">Aggiorna ordini</button>
+              <button id="clearOrders" type="button" class="danger" data-i18n="btn.deleteAll">Elimina tutti</button>
             </div>
           </div>
           <div class="orders-columns">
             <section class="orders-column confirmed-column" aria-labelledby="confirmedOrdersTitle">
               <div class="orders-column-title">
-                <h3 id="confirmedOrdersTitle">Confermati</h3>
+                <h3 id="confirmedOrdersTitle" data-i18n="orders.confirmed">Confermati</h3>
                 <span id="confirmedCount" class="count-badge">0</span>
               </div>
               <div id="confirmedOrdersList" class="orders-list"></div>
             </section>
             <section class="orders-column cancelled-column" aria-labelledby="cancelledOrdersTitle">
               <div class="orders-column-title">
-                <h3 id="cancelledOrdersTitle">Cancellati</h3>
+                <h3 id="cancelledOrdersTitle" data-i18n="orders.cancelled">Cancellati</h3>
                 <span id="cancelledCount" class="count-badge danger-count">0</span>
               </div>
               <div id="cancelledOrdersList" class="orders-list"></div>
@@ -190,15 +194,15 @@
         <div class="panel logs-panel">
           <div class="panel-title compact">
             <div>
-              <p class="eyebrow">Diagnostica</p>
-              <h2>Log runtime</h2>
+              <p class="eyebrow" data-i18n="diag.eyebrow">Diagnostica</p>
+              <h2 data-i18n="diag.title">Log runtime</h2>
             </div>
-            <button id="logsToggle" type="button" class="secondary" aria-expanded="false" aria-controls="logsContent">Mostra log</button>
+            <button id="logsToggle" type="button" class="secondary" aria-expanded="false" aria-controls="logsContent" data-i18n="btn.showLogs">Mostra log</button>
           </div>
           <div id="logsContent" hidden>
             <div class="log-controls">
-              <select id="logSelect" aria-label="Seleziona log"></select>
-              <button id="refreshLogs" type="button" class="secondary">Aggiorna log</button>
+              <select id="logSelect" aria-label="Log"></select>
+              <button id="refreshLogs" type="button" class="secondary" data-i18n="btn.refreshLogs">Aggiorna log</button>
             </div>
             <pre id="logOutput"></pre>
           </div>

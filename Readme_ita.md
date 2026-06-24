@@ -431,6 +431,7 @@ Come estensione (non richiesta dalla traccia) è stata realizzata una **dashboar
 - **Simulatore di richiesta:** form con username, formato, città, prezzo, strategia e — tramite un **checkbox** — input di prezzo **per singola città** generati dinamicamente in base alle città inserite (con i valori preservati al cambio delle città). Sono presenti dei *preset* per dimostrare sia il caso felice sia ogni scenario di errore.
 - **Decisione:** sezione per confermare/annullare usando il `requestId`, sbloccata solo dopo una richiesta valida.
 - **Health dei servizi, elenco ordini generati, viewer dei log** in tempo reale.
+- **Interfaccia bilingue (italiano/inglese)** con uno switch di lingua nella barra superiore; la scelta è applicata in tempo reale e salvata in `localStorage`.
 
 **Perché un frontend.** Rende immediatamente dimostrabile l'intero flusso in sede d'esame, mostra in modo "amichevole" gli esiti (zone, totale, città saltate, fattura) e copre il punto della traccia sull'estensione del sistema con funzionalità utili.
 

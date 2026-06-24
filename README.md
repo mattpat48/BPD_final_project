@@ -431,6 +431,7 @@ As an extension (not required by the assignment) a **web dashboard** was built i
 - **Request simulator:** a form with username, format, cities, price, strategy and — through a **checkbox** — **per-city** price inputs generated dynamically based on the entered cities (with values preserved when the cities change). *Presets* are provided to demonstrate both the happy path and every error scenario.
 - **Decision:** a section to confirm/cancel using the `requestId`, unlocked only after a valid request.
 - **Service health, list of generated orders, log viewer** in real time.
+- **Bilingual UI (Italian/English)** with a language switch in the top bar; the choice is applied live and persisted in `localStorage`.
 
 **Why a frontend.** It makes the whole flow immediately demonstrable during the exam, shows the outcomes in a "friendly" way (zones, total, skipped cities, invoice) and covers the assignment's point about extending the system with useful features.
 

@@ -8,71 +8,257 @@ const state = {
   logsVisible: false
 };
 
-// Each preset declares the form values and the outcome we expect, so the dashboard can
-// demonstrate, side by side, both the happy path and every managed error scenario.
-const presets = {
-  standard: {
-    label: "Valido · L'Aquila + Rome",
-    expect: "OK 200 — richiesta valida, requestId generato",
-    kind: "ok",
-    username: "mariorossi",
-    posterFormat: "60x80",
-    cities: "L'Aquila, Rome",
-    maxPrice: "20"
+// --- i18n -------------------------------------------------------------------
+// Hardcoded IT/EN dictionary. Plain strings are used as-is; functions build
+// parameterized strings. Missing keys fall back to Italian, then to the key.
+const translations = {
+  it: {
+    "app.title": "Dashboard di simulazione",
+    "btn.openCamunda": "Apri Camunda",
+    "btn.refreshAll": "Aggiorna tutto",
+    "flow.step1.title": "Invia una richiesta",
+    "flow.step1.desc": "Ottieni un Request ID e le zone selezionate",
+    "flow.step2.title": "Conferma o annulla",
+    "flow.step2.desc": "Usando il Request ID del passo 1",
+    "flow.step3.title": "Ordine generato",
+    "flow.step3.desc": "Compare nella sezione \"File generati\"",
+    "req.eyebrow": "Simulatore processo",
+    "req.title": "Nuova richiesta affissione",
+    "f.username": "Username",
+    "f.posterFormat": "Formato manifesto",
+    "f.cities": "Citta, separate da virgola",
+    "f.maxPrice": "Prezzo max per citta",
+    "f.perCity": "Prezzo massimo diverso per singola citta (sovrascrive il prezzo globale)",
+    "f.strategy": "Strategia selezione zone",
+    "strat.default": "Predefinita — nessun parametro (usa greedy)",
+    "strat.greedy": "Greedy — piu costose",
+    "strat.maxzones": "Piu zone possibili",
+    "strat.balanced": "Copertura bilanciata",
+    "strat.lowest": "Spesa minima",
+    "btn.sendRequest": "Invia richiesta",
+    "common.outcome": "Esito",
+    "req.sentTitle": "Richieste inviate",
+    "status.waiting": "in attesa",
+    "req.empty": "Invia una richiesta per vedere qui l'esito, il Request ID e le zone selezionate.",
+    "dec.eyebrow": "Decisione cliente",
+    "dec.title": "Conferma o annulla",
+    "f.requestId": "Request ID",
+    "ph.requestId": "Generato dal passo 1",
+    "btn.confirm": "Conferma",
+    "btn.cancel": "Annulla",
+    "dec.sentTitle": "Decisioni inviate",
+    "dec.empty": "Conferma o annulla una richiesta per vedere qui l'esito.",
+    "orders.eyebrow": "Ordini",
+    "orders.title": "File generati",
+    "btn.refreshOrders": "Aggiorna ordini",
+    "btn.deleteAll": "Elimina tutti",
+    "orders.confirmed": "Confermati",
+    "orders.cancelled": "Cancellati",
+    "diag.eyebrow": "Diagnostica",
+    "diag.title": "Log runtime",
+    "btn.showLogs": "Mostra log",
+    "btn.hideLogs": "Nascondi log",
+    "btn.refreshLogs": "Aggiorna log",
+    "strategyLabel.GREEDY": "Greedy — piu costose",
+    "strategyLabel.MAX_ZONES": "Piu zone possibili",
+    "strategyLabel.BALANCED_COVERAGE": "Copertura bilanciata",
+    "strategyLabel.LOWEST_TOTAL": "Spesa minima",
+    "preset.expectPrefix": "Esito atteso",
+    "preset.standard.label": "Valido · L'Aquila + Rome",
+    "preset.standard.expect": "OK 200 — richiesta valida, requestId generato",
+    "preset.milan.label": "Valido · Milan budget alto",
+    "preset.milan.expect": "OK 200 — seleziona piu zone fino al budget",
+    "preset.userNotFound.label": "Errore · Utente inesistente",
+    "preset.userNotFound.expect": "404 Not Found — USER_NOT_FOUND",
+    "preset.cityNotServed.label": "Errore · Citta non servita",
+    "preset.cityNotServed.expect": "422 Unprocessable — NO_AFFORDABLE_ZONES",
+    "preset.budgetTooLow.label": "Errore · Budget troppo basso",
+    "preset.budgetTooLow.expect": "422 Unprocessable — NO_AFFORDABLE_ZONES",
+    "preset.invalid.label": "Errore · Input non valido",
+    "preset.invalid.expect": "400 Bad Request — validazione API (campi mancanti)",
+    "note.ready": id => `Request ID "${id}" pronto: ora puoi confermare o annullare l'affissione.`,
+    "note.notReady": "Prima invia una richiesta (passo 1): otterrai un Request ID, che comparira qui in automatico. Solo allora potrai confermare o annullare.",
+    "resp.requestSent": "Richiesta inviata",
+    "resp.requestError": "Errore richiesta",
+    "resp.decisionPrefix": "Decisione",
+    "resp.decisionError": "Errore decisione",
+    "resp.requestIdMissing": "requestId mancante",
+    "resp.requestIdMissingBody": "Inserisci o genera un requestId prima della decisione.",
+    "tl.request": "Richiesta",
+    "tl.decision": "Decisione",
+    "tl.ok": "OK",
+    "tl.error": "Errore",
+    "tl.showLatest": "Mostra solo l'ultima",
+    "tl.showHistory": n => `Mostra storico (${n} precedenti)`,
+    "tl.techDetails": "Dettagli tecnici (JSON)",
+    "tl.sent": "Dati inviati",
+    "tl.received": "Risposta ricevuta",
+    "fr.requestId": "Request ID",
+    "fr.strategyUsed": "Strategia usata",
+    "fr.total": "Totale",
+    "fr.warnBudget": cities => `⚠ Nessuna zona entro il budget per: ${cities}`,
+    "fr.zonesSelected": n => `Zone selezionate (${n})`,
+    "fr.zone": "Zona",
+    "fr.confirmed": "✓ Affissione confermata",
+    "fr.cancelled": "✕ Richiesta annullata",
+    "fr.accountHolder": "Intestatario",
+    "fr.invoice": "N° fattura",
+    "fr.amount": "Importo",
+    "fr.errorWord": "Errore",
+    "order.confirmed": "Confermato",
+    "order.cancelled": "Cancellato",
+    "meta.amount": "Importo",
+    "meta.username": "Username",
+    "meta.format": "Formato",
+    "meta.updated": "Aggiornato",
+    "meta.zones": "Zone",
+    "orders.emptyConfirmed": "Nessun ordine confermato trovato.",
+    "orders.emptyCancelled": "Nessun ordine cancellato trovato.",
+    "orders.summary": (c, x) => `${c} confermati - ${x} cancellati`,
+    "orders.deleteConfirm": "Eliminare TUTTI i file generati (confermati e cancellati)? L'operazione non e reversibile.",
+    "orders.deleted": n => `${n} file eliminati`,
+    "orders.deleteError": msg => `Errore eliminazione: ${msg}`,
+    "health.checking": "Controllo servizi...",
+    "health.error": "Errore health",
+    "log.empty": "(log vuoto)",
+    "log.none": "Nessun log trovato.",
+    "perCity.placeholder": "usa globale",
+    "perCity.enterCities": "Inserisci prima una o piu citta qui sopra."
   },
-  milan: {
-    label: "Valido · Milan budget alto",
-    expect: "OK 200 — seleziona piu zone fino al budget",
-    kind: "ok",
-    username: "mariorossi",
-    posterFormat: "60x80",
-    cities: "Milan",
-    maxPrice: "130"
-  },
-  userNotFound: {
-    label: "Errore · Utente inesistente",
-    expect: "404 Not Found — USER_NOT_FOUND",
-    kind: "error",
-    username: "ghostuser",
-    posterFormat: "60x80",
-    cities: "Rome",
-    maxPrice: "50"
-  },
-  cityNotServed: {
-    label: "Errore · Citta non servita",
-    expect: "422 Unprocessable — NO_AFFORDABLE_ZONES",
-    kind: "error",
-    username: "mariorossi",
-    posterFormat: "60x80",
-    cities: "Napoli",
-    maxPrice: "50"
-  },
-  budgetTooLow: {
-    label: "Errore · Budget troppo basso",
-    expect: "422 Unprocessable — NO_AFFORDABLE_ZONES",
-    kind: "error",
-    username: "mariorossi",
-    posterFormat: "60x80",
-    cities: "Milan",
-    maxPrice: "1"
-  },
-  invalid: {
-    label: "Errore · Input non valido",
-    expect: "400 Bad Request — validazione API (campi mancanti)",
-    kind: "error",
-    username: "",
-    posterFormat: "60x80",
-    cities: "",
-    maxPrice: "0"
+  en: {
+    "app.title": "Simulation dashboard",
+    "btn.openCamunda": "Open Camunda",
+    "btn.refreshAll": "Refresh all",
+    "flow.step1.title": "Send a request",
+    "flow.step1.desc": "Get a Request ID and the selected zones",
+    "flow.step2.title": "Confirm or cancel",
+    "flow.step2.desc": "Using the Request ID from step 1",
+    "flow.step3.title": "Order generated",
+    "flow.step3.desc": "Appears in the \"Generated files\" section",
+    "req.eyebrow": "Process simulator",
+    "req.title": "New billposting request",
+    "f.username": "Username",
+    "f.posterFormat": "Poster format",
+    "f.cities": "Cities, comma-separated",
+    "f.maxPrice": "Max price per city",
+    "f.perCity": "Different max price per city (overrides the global price)",
+    "f.strategy": "Zone-selection strategy",
+    "strat.default": "Default — no parameter (uses greedy)",
+    "strat.greedy": "Greedy — most expensive",
+    "strat.maxzones": "Most zones possible",
+    "strat.balanced": "Balanced coverage",
+    "strat.lowest": "Minimum spend",
+    "btn.sendRequest": "Send request",
+    "common.outcome": "Outcome",
+    "req.sentTitle": "Requests sent",
+    "status.waiting": "waiting",
+    "req.empty": "Send a request to see the outcome, the Request ID and the selected zones here.",
+    "dec.eyebrow": "Customer decision",
+    "dec.title": "Confirm or cancel",
+    "f.requestId": "Request ID",
+    "ph.requestId": "Generated in step 1",
+    "btn.confirm": "Confirm",
+    "btn.cancel": "Cancel",
+    "dec.sentTitle": "Decisions sent",
+    "dec.empty": "Confirm or cancel a request to see the outcome here.",
+    "orders.eyebrow": "Orders",
+    "orders.title": "Generated files",
+    "btn.refreshOrders": "Refresh orders",
+    "btn.deleteAll": "Delete all",
+    "orders.confirmed": "Confirmed",
+    "orders.cancelled": "Cancelled",
+    "diag.eyebrow": "Diagnostics",
+    "diag.title": "Runtime logs",
+    "btn.showLogs": "Show logs",
+    "btn.hideLogs": "Hide logs",
+    "btn.refreshLogs": "Refresh logs",
+    "strategyLabel.GREEDY": "Greedy — most expensive",
+    "strategyLabel.MAX_ZONES": "Most zones possible",
+    "strategyLabel.BALANCED_COVERAGE": "Balanced coverage",
+    "strategyLabel.LOWEST_TOTAL": "Minimum spend",
+    "preset.expectPrefix": "Expected outcome",
+    "preset.standard.label": "Valid · L'Aquila + Rome",
+    "preset.standard.expect": "OK 200 — valid request, requestId generated",
+    "preset.milan.label": "Valid · Milan high budget",
+    "preset.milan.expect": "OK 200 — selects more zones up to budget",
+    "preset.userNotFound.label": "Error · Non-existent user",
+    "preset.userNotFound.expect": "404 Not Found — USER_NOT_FOUND",
+    "preset.cityNotServed.label": "Error · Unserved city",
+    "preset.cityNotServed.expect": "422 Unprocessable — NO_AFFORDABLE_ZONES",
+    "preset.budgetTooLow.label": "Error · Budget too low",
+    "preset.budgetTooLow.expect": "422 Unprocessable — NO_AFFORDABLE_ZONES",
+    "preset.invalid.label": "Error · Invalid input",
+    "preset.invalid.expect": "400 Bad Request — API validation (missing fields)",
+    "note.ready": id => `Request ID "${id}" ready: you can now confirm or cancel the billposting.`,
+    "note.notReady": "First send a request (step 1): you will get a Request ID, which appears here automatically. Only then can you confirm or cancel.",
+    "resp.requestSent": "Request sent",
+    "resp.requestError": "Request error",
+    "resp.decisionPrefix": "Decision",
+    "resp.decisionError": "Decision error",
+    "resp.requestIdMissing": "missing requestId",
+    "resp.requestIdMissingBody": "Enter or generate a requestId before the decision.",
+    "tl.request": "Request",
+    "tl.decision": "Decision",
+    "tl.ok": "OK",
+    "tl.error": "Error",
+    "tl.showLatest": "Show only the latest",
+    "tl.showHistory": n => `Show history (${n} previous)`,
+    "tl.techDetails": "Technical details (JSON)",
+    "tl.sent": "Data sent",
+    "tl.received": "Response received",
+    "fr.requestId": "Request ID",
+    "fr.strategyUsed": "Strategy used",
+    "fr.total": "Total",
+    "fr.warnBudget": cities => `⚠ No zone within budget for: ${cities}`,
+    "fr.zonesSelected": n => `Selected zones (${n})`,
+    "fr.zone": "Zone",
+    "fr.confirmed": "✓ Billposting confirmed",
+    "fr.cancelled": "✕ Request cancelled",
+    "fr.accountHolder": "Account holder",
+    "fr.invoice": "Invoice no.",
+    "fr.amount": "Amount",
+    "fr.errorWord": "Error",
+    "order.confirmed": "Confirmed",
+    "order.cancelled": "Cancelled",
+    "meta.amount": "Amount",
+    "meta.username": "Username",
+    "meta.format": "Format",
+    "meta.updated": "Updated",
+    "meta.zones": "Zones",
+    "orders.emptyConfirmed": "No confirmed order found.",
+    "orders.emptyCancelled": "No cancelled order found.",
+    "orders.summary": (c, x) => `${c} confirmed - ${x} cancelled`,
+    "orders.deleteConfirm": "Delete ALL generated files (confirmed and cancelled)? This cannot be undone.",
+    "orders.deleted": n => `${n} files deleted`,
+    "orders.deleteError": msg => `Deletion error: ${msg}`,
+    "health.checking": "Checking services...",
+    "health.error": "Health error",
+    "log.empty": "(empty log)",
+    "log.none": "No log found.",
+    "perCity.placeholder": "use global",
+    "perCity.enterCities": "Enter one or more cities above first."
   }
 };
 
-// Human-readable labels for the zone-selection algorithms returned by the backend.
-const STRATEGY_LABELS = {
-  GREEDY: "Greedy — piu costose",
-  MAX_ZONES: "Piu zone possibili",
-  BALANCED_COVERAGE: "Copertura bilanciata",
-  LOWEST_TOTAL: "Spesa minima"
+let currentLang = localStorage.getItem("bpdLang") || "it";
+
+function t(key, ...args) {
+  const dict = translations[currentLang] || translations.it;
+  let value = dict[key];
+  if (value == null) value = translations.it[key];
+  if (value == null) return key;
+  return typeof value === "function" ? value(...args) : value;
+}
+
+// Each preset declares the form values and the kind of outcome we expect. The human-readable
+// label/hint live in the i18n dictionary (keys preset.<name>.label / .expect).
+const presets = {
+  standard: { kind: "ok", username: "mariorossi", posterFormat: "60x80", cities: "L'Aquila, Rome", maxPrice: "20" },
+  milan: { kind: "ok", username: "mariorossi", posterFormat: "60x80", cities: "Milan", maxPrice: "130" },
+  userNotFound: { kind: "error", username: "ghostuser", posterFormat: "60x80", cities: "Rome", maxPrice: "50" },
+  cityNotServed: { kind: "error", username: "mariorossi", posterFormat: "60x80", cities: "Napoli", maxPrice: "50" },
+  budgetTooLow: { kind: "error", username: "mariorossi", posterFormat: "60x80", cities: "Milan", maxPrice: "1" },
+  invalid: { kind: "error", username: "", posterFormat: "60x80", cities: "", maxPrice: "0" }
 };
 
 const elements = {
@@ -105,7 +291,9 @@ const elements = {
   logsContent: document.querySelector("#logsContent"),
   logSelect: document.querySelector("#logSelect"),
   refreshLogs: document.querySelector("#refreshLogs"),
-  logOutput: document.querySelector("#logOutput")
+  logOutput: document.querySelector("#logOutput"),
+  langIt: document.querySelector("#langIt"),
+  langEn: document.querySelector("#langEn")
 };
 
 function setBusy(button, isBusy) {
@@ -120,7 +308,7 @@ function formatJson(value) {
 function formatDateTime(value = new Date()) {
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleString("it-IT", {
+  return date.toLocaleString(currentLang === "en" ? "en-GB" : "it-IT", {
     day: "2-digit",
     month: "2-digit",
     hour: "2-digit",
@@ -136,7 +324,9 @@ function formatPrice(value) {
 
 function strategyLabel(value) {
   if (!value) return "—";
-  return STRATEGY_LABELS[value] || value;
+  const key = "strategyLabel." + value;
+  const dict = translations[currentLang] || translations.it;
+  return dict[key] != null ? dict[key] : (translations.it[key] != null ? translations.it[key] : value);
 }
 
 function parseZones(json) {
@@ -208,7 +398,7 @@ function createZoneList(zones) {
 
   const title = document.createElement("span");
   title.className = "zone-block-title";
-  title.textContent = `Zone selezionate (${zones.length})`;
+  title.textContent = t("fr.zonesSelected", zones.length);
   wrap.appendChild(title);
 
   const list = document.createElement("div");
@@ -219,7 +409,7 @@ function createZoneList(zones) {
 
     const name = document.createElement("span");
     name.className = "zone-chip-name";
-    name.textContent = `${zone.city || ""}${zone.name ? " · " + zone.name : ""}`.trim() || "Zona";
+    name.textContent = `${zone.city || ""}${zone.name ? " · " + zone.name : ""}`.trim() || t("fr.zone");
 
     const price = document.createElement("span");
     price.className = "zone-chip-price";
@@ -261,8 +451,8 @@ function buildFriendly(entry) {
 
     const msg = document.createElement("strong");
     const text = payload && typeof payload === "object"
-      ? (payload.error || payload.message || "Errore")
-      : (typeof payload === "string" && payload ? payload : "Errore");
+      ? (payload.error || payload.message || t("fr.errorWord"))
+      : (typeof payload === "string" && payload ? payload : t("fr.errorWord"));
     msg.textContent = text;
     box.appendChild(msg);
 
@@ -279,15 +469,15 @@ function buildFriendly(entry) {
 
   if (entry.kind === "request") {
     wrap.appendChild(createFactGrid([
-      ["Request ID", payload.requestId || "—", "mono"],
-      ["Strategia usata", strategyLabel(payload.usedStrategy)],
-      ["Totale", formatPrice(payload.totalPrice), "accent"]
+      [t("fr.requestId"), payload.requestId || "—", "mono"],
+      [t("fr.strategyUsed"), strategyLabel(payload.usedStrategy)],
+      [t("fr.total"), formatPrice(payload.totalPrice), "accent"]
     ]));
     const skipped = parseCityList(payload.skippedCities);
     if (skipped.length) {
       const warn = document.createElement("div");
       warn.className = "warn-banner";
-      warn.textContent = `⚠ Nessuna zona entro il budget per: ${skipped.join(", ")}`;
+      warn.textContent = t("fr.warnBudget", skipped.join(", "));
       wrap.appendChild(warn);
     }
     const zones = parseZones(payload.selectedZonesJSON);
@@ -301,14 +491,14 @@ function buildFriendly(entry) {
 
   const banner = document.createElement("div");
   banner.className = `outcome-banner ${confirmed ? "ok" : "cancel"}`;
-  banner.textContent = confirmed ? "✓ Affissione confermata" : "✕ Richiesta annullata";
+  banner.textContent = confirmed ? t("fr.confirmed") : t("fr.cancelled");
   wrap.appendChild(banner);
 
   if (confirmed) {
     wrap.appendChild(createFactGrid([
-      ["Intestatario", payload.accountHolder || "—"],
-      ["N° fattura", payload.invoiceNumber || "—", "mono"],
-      ["Importo", formatPrice(payload.amountDue), "accent"]
+      [t("fr.accountHolder"), payload.accountHolder || "—"],
+      [t("fr.invoice"), payload.invoiceNumber || "—", "mono"],
+      [t("fr.amount"), formatPrice(payload.amountDue), "accent"]
     ]));
   }
   return wrap;
@@ -345,7 +535,7 @@ function renderTimeline(container, entries, emptyText, titlePrefix, expandKey) {
 
     const status = document.createElement("span");
     status.className = "pill";
-    status.textContent = entry.ok ? "OK" : "Errore";
+    status.textContent = entry.ok ? t("tl.ok") : t("tl.error");
     status.style.background = entry.ok ? "#ecfdf3" : "#fff1f0";
     status.style.color = entry.ok ? "#067647" : "#b42318";
 
@@ -366,13 +556,13 @@ function renderTimeline(container, entries, emptyText, titlePrefix, expandKey) {
     const details = document.createElement("details");
     details.className = "tech-details";
     const summary = document.createElement("summary");
-    summary.textContent = "Dettagli tecnici (JSON)";
+    summary.textContent = t("tl.techDetails");
     details.appendChild(summary);
 
     const techGrid = document.createElement("div");
     techGrid.className = "tech-grid";
-    if (entry.request) techGrid.appendChild(createJsonDetail("Dati inviati", entry.request));
-    techGrid.appendChild(createJsonDetail("Risposta ricevuta", entry.payload));
+    if (entry.request) techGrid.appendChild(createJsonDetail(t("tl.sent"), entry.request));
+    techGrid.appendChild(createJsonDetail(t("tl.received"), entry.payload));
     details.appendChild(techGrid);
     body.appendChild(details);
 
@@ -384,15 +574,21 @@ function renderTimeline(container, entries, emptyText, titlePrefix, expandKey) {
     const toggle = document.createElement("button");
     toggle.type = "button";
     toggle.className = "secondary timeline-toggle";
-    toggle.textContent = expanded
-      ? "Mostra solo l'ultima"
-      : `Mostra storico (${entries.length - 1} precedenti)`;
+    toggle.textContent = expanded ? t("tl.showLatest") : t("tl.showHistory", entries.length - 1);
     toggle.addEventListener("click", () => {
       state[expandKey] = !state[expandKey];
       renderTimeline(container, entries, emptyText, titlePrefix, expandKey);
     });
     container.appendChild(toggle);
   }
+}
+
+function renderRequestTimeline() {
+  renderTimeline(elements.requestTimeline, state.requestEntries, t("req.empty"), t("tl.request"), "requestExpanded");
+}
+
+function renderDecisionTimeline() {
+  renderTimeline(elements.decisionTimeline, state.decisionEntries, t("dec.empty"), t("tl.decision"), "decisionExpanded");
 }
 
 function setStatus(element, label, ok) {
@@ -405,13 +601,7 @@ function showRequestResponse(label, payload, ok = true, context = {}) {
   setStatus(elements.requestStatus, label, ok);
   if (context.track) {
     addTimelineEntry(state.requestEntries, "request", label, payload, ok, context);
-    renderTimeline(
-      elements.requestTimeline,
-      state.requestEntries,
-      "Invia una richiesta per vedere qui l'esito, il Request ID e le zone selezionate.",
-      "Richiesta",
-      "requestExpanded"
-    );
+    renderRequestTimeline();
   }
 }
 
@@ -419,13 +609,7 @@ function showDecisionResponse(label, payload, ok = true, context = {}) {
   setStatus(elements.decisionStatus, label, ok);
   if (context.track) {
     addTimelineEntry(state.decisionEntries, "decision", label, payload, ok, context);
-    renderTimeline(
-      elements.decisionTimeline,
-      state.decisionEntries,
-      "Conferma o annulla una richiesta per vedere qui l'esito.",
-      "Decisione",
-      "decisionExpanded"
-    );
+    renderDecisionTimeline();
   }
 }
 
@@ -436,9 +620,7 @@ function updateDecisionState() {
   elements.confirmDecision.disabled = !ready;
   elements.cancelDecision.disabled = !ready;
   elements.decisionNote.classList.toggle("ready", ready);
-  elements.decisionNote.textContent = ready
-    ? `Request ID "${id}" pronto: ora puoi confermare o annullare l'affissione.`
-    : "Prima invia una richiesta (passo 1): otterrai un Request ID, che comparira qui in automatico. Solo allora potrai confermare o annullare.";
+  elements.decisionNote.textContent = ready ? t("note.ready", id) : t("note.notReady");
 }
 
 async function api(path, options = {}) {
@@ -468,13 +650,15 @@ async function api(path, options = {}) {
 }
 
 function populatePresetOptions() {
+  const previous = elements.presetSelect.value;
   elements.presetSelect.innerHTML = "";
-  Object.entries(presets).forEach(([value, preset]) => {
+  Object.keys(presets).forEach(value => {
     const option = document.createElement("option");
     option.value = value;
-    option.textContent = preset.label;
+    option.textContent = t(`preset.${value}.label`);
     elements.presetSelect.appendChild(option);
   });
+  if (previous) elements.presetSelect.value = previous;
 }
 
 function applyPreset(name) {
@@ -487,10 +671,11 @@ function applyPreset(name) {
   elements.strategy.value = preset.strategy || "";
 
   if (elements.presetHint) {
-    elements.presetHint.textContent = `Esito atteso: ${preset.expect}`;
+    elements.presetHint.textContent = `${t("preset.expectPrefix")}: ${t(`preset.${name}.expect`)}`;
     elements.presetHint.classList.toggle("is-error", preset.kind === "error");
     elements.presetHint.classList.toggle("is-ok", preset.kind !== "error");
   }
+  elements.presetHint.dataset.preset = name;
 
   // Keep the per-city inputs in sync with the preset's cities.
   renderPerCityInputs();
@@ -523,7 +708,7 @@ function renderPerCityInputs() {
   if (!cities.length) {
     const hint = document.createElement("p");
     hint.className = "per-city-empty";
-    hint.textContent = "Inserisci prima una o piu citta qui sopra.";
+    hint.textContent = t("perCity.enterCities");
     elements.perCityContainer.appendChild(hint);
     return;
   }
@@ -542,7 +727,7 @@ function renderPerCityInputs() {
     input.min = "0";
     input.step = "0.1";
     input.dataset.city = city;
-    input.placeholder = "usa globale";
+    input.placeholder = t("perCity.placeholder");
     if (previous[city] != null) input.value = previous[city];
 
     label.append(name, input);
@@ -581,7 +766,7 @@ function requestPayloadFromForm() {
 }
 
 async function refreshHealth() {
-  elements.healthGrid.innerHTML = "<div class=\"service-tile\"><strong>Controllo servizi...</strong></div>";
+  elements.healthGrid.innerHTML = `<div class="service-tile"><strong>${t("health.checking")}</strong></div>`;
   try {
     const data = await api("/api/health");
     elements.healthGrid.innerHTML = "";
@@ -596,7 +781,7 @@ async function refreshHealth() {
       elements.healthGrid.appendChild(tile);
     });
   } catch (error) {
-    elements.healthGrid.innerHTML = `<div class="service-tile offline"><strong>Errore health</strong><span>${error.message}</span></div>`;
+    elements.healthGrid.innerHTML = `<div class="service-tile offline"><strong>${t("health.error")}</strong><span>${error.message}</span></div>`;
   }
 }
 
@@ -616,14 +801,14 @@ async function sendRequest(event) {
       elements.requestId.value = data.requestId;
       updateDecisionState();
     }
-    showRequestResponse("Richiesta inviata", data, true, {
+    showRequestResponse(t("resp.requestSent"), data, true, {
       request: payload,
       requestId: data.requestId,
       track: true
     });
     await refreshAllSecondary();
   } catch (error) {
-    showRequestResponse("Errore richiesta", error.payload || error.message, false, {
+    showRequestResponse(t("resp.requestError"), error.payload || error.message, false, {
       request: payload,
       track: true
     });
@@ -635,7 +820,7 @@ async function sendRequest(event) {
 async function sendDecision(decision, button) {
   const requestId = elements.requestId.value.trim();
   if (!requestId) {
-    showDecisionResponse("requestId mancante", { error: "Inserisci o genera un requestId prima della decisione." }, false, {
+    showDecisionResponse(t("resp.requestIdMissing"), { error: t("resp.requestIdMissingBody") }, false, {
       request: { requestId, decision },
       track: true
     });
@@ -649,14 +834,14 @@ async function sendDecision(decision, button) {
       method: "POST",
       body: JSON.stringify(payload)
     });
-    showDecisionResponse(`Decisione: ${decision}`, data, true, {
+    showDecisionResponse(`${t("resp.decisionPrefix")}: ${decision}`, data, true, {
       request: payload,
       requestId,
       track: true
     });
     await refreshAllSecondary();
   } catch (error) {
-    showDecisionResponse("Errore decisione", error.payload || error.message, false, {
+    showDecisionResponse(t("resp.decisionError"), error.payload || error.message, false, {
       request: { requestId, decision },
       requestId,
       track: true
@@ -669,7 +854,7 @@ async function sendDecision(decision, button) {
 function createOrderMeta(label, value) {
   const item = document.createElement("div");
   item.className = "order-meta";
-  if (label === "Zone") item.classList.add("wide-order-meta");
+  if (label === t("meta.zones")) item.classList.add("wide-order-meta");
 
   const strong = document.createElement("strong");
   strong.textContent = value || "-";
@@ -716,18 +901,18 @@ function renderOrderList(container, orders, emptyText) {
 
     article.classList.add(order.type);
     status.className = "order-status";
-    status.textContent = isConfirmed ? "Confermato" : "Cancellato";
+    status.textContent = isConfirmed ? t("order.confirmed") : t("order.cancelled");
     title.textContent = order.requestId || order.fileName;
 
     details.append(
-      createOrderMeta("Importo", order.amount),
-      createOrderMeta("Username", order.username),
-      createOrderMeta("Formato", order.format),
-      createOrderMeta("Aggiornato", formatDateTime(order.modifiedAt))
+      createOrderMeta(t("meta.amount"), order.amount),
+      createOrderMeta(t("meta.username"), order.username),
+      createOrderMeta(t("meta.format"), order.format),
+      createOrderMeta(t("meta.updated"), formatDateTime(order.modifiedAt))
     );
 
     if (order.selectedZones) {
-      details.appendChild(createOrderMeta("Zone", formatZones(order.selectedZones)));
+      details.appendChild(createOrderMeta(t("meta.zones"), formatZones(order.selectedZones)));
     }
 
     body.textContent = order.content;
@@ -743,10 +928,10 @@ async function refreshOrders() {
 
     elements.confirmedCount.textContent = confirmed.length;
     elements.cancelledCount.textContent = cancelled.length;
-    elements.ordersSummary.textContent = `${confirmed.length} confermati - ${cancelled.length} cancellati`;
+    elements.ordersSummary.textContent = t("orders.summary", confirmed.length, cancelled.length);
 
-    renderOrderList(elements.confirmedOrdersList, confirmed, "Nessun ordine confermato trovato.");
-    renderOrderList(elements.cancelledOrdersList, cancelled, "Nessun ordine cancellato trovato.");
+    renderOrderList(elements.confirmedOrdersList, confirmed, t("orders.emptyConfirmed"));
+    renderOrderList(elements.cancelledOrdersList, cancelled, t("orders.emptyCancelled"));
   } catch (error) {
     elements.confirmedOrdersList.textContent = error.message;
     elements.cancelledOrdersList.textContent = "";
@@ -754,16 +939,16 @@ async function refreshOrders() {
 }
 
 async function clearOrders(button) {
-  const ok = window.confirm("Eliminare TUTTI i file generati (confermati e cancellati)? L'operazione non e reversibile.");
+  const ok = window.confirm(t("orders.deleteConfirm"));
   if (!ok) return;
 
   setBusy(button, true);
   try {
     const data = await api("/api/orders", { method: "DELETE" });
-    elements.ordersSummary.textContent = `${data.deleted || 0} file eliminati`;
+    elements.ordersSummary.textContent = t("orders.deleted", data.deleted || 0);
     await refreshOrders();
   } catch (error) {
-    elements.ordersSummary.textContent = `Errore eliminazione: ${error.message}`;
+    elements.ordersSummary.textContent = t("orders.deleteError", error.message);
   } finally {
     setBusy(button, false);
   }
@@ -796,14 +981,14 @@ async function refreshLogs() {
 function renderSelectedLog() {
   const selected = elements.logSelect.value;
   const log = state.logs.find(item => item.name === selected) || state.logs[0];
-  elements.logOutput.textContent = log ? log.content || "(log vuoto)" : "Nessun log trovato.";
+  elements.logOutput.textContent = log ? log.content || t("log.empty") : t("log.none");
 }
 
 function toggleLogs() {
   state.logsVisible = !state.logsVisible;
   elements.logsContent.hidden = !state.logsVisible;
   elements.logsToggle.setAttribute("aria-expanded", String(state.logsVisible));
-  elements.logsToggle.textContent = state.logsVisible ? "Nascondi log" : "Mostra log";
+  elements.logsToggle.textContent = state.logsVisible ? t("btn.hideLogs") : t("btn.showLogs");
   if (state.logsVisible) refreshLogs();
 }
 
@@ -817,6 +1002,46 @@ async function refreshAll() {
   const tasks = [refreshHealth(), refreshOrders()];
   if (state.logsVisible) tasks.push(refreshLogs());
   await Promise.all(tasks);
+}
+
+// --- Language switch --------------------------------------------------------
+// Apply translations to every element carrying a data-i18n / data-i18n-ph attribute.
+function applyStaticI18n() {
+  document.querySelectorAll("[data-i18n]").forEach(el => {
+    el.textContent = t(el.dataset.i18n);
+  });
+  document.querySelectorAll("[data-i18n-ph]").forEach(el => {
+    el.setAttribute("placeholder", t(el.dataset.i18nPh));
+  });
+  document.documentElement.lang = currentLang;
+}
+
+function setLanguage(lang) {
+  currentLang = translations[lang] ? lang : "it";
+  localStorage.setItem("bpdLang", currentLang);
+
+  elements.langIt.classList.toggle("active", currentLang === "it");
+  elements.langEn.classList.toggle("active", currentLang === "en");
+
+  applyStaticI18n();
+
+  // Re-render every dynamic piece so the chosen language takes effect immediately.
+  populatePresetOptions();
+  const activePreset = elements.presetHint.dataset.preset;
+  if (activePreset && elements.presetHint.textContent) {
+    elements.presetHint.textContent = `${t("preset.expectPrefix")}: ${t(`preset.${activePreset}.expect`)}`;
+  }
+  updateDecisionState();
+  renderRequestTimeline();
+  renderDecisionTimeline();
+  renderPerCityInputs();
+  if (state.logsVisible) {
+    elements.logsToggle.textContent = t("btn.hideLogs");
+  } else {
+    elements.logsToggle.textContent = t("btn.showLogs");
+  }
+  renderSelectedLog();
+  refreshOrders();
 }
 
 document.querySelector("#refreshAll").addEventListener("click", refreshAll);
@@ -834,7 +1059,12 @@ elements.perCityToggle.addEventListener("change", renderPerCityInputs);
 elements.cities.addEventListener("input", () => {
   if (elements.perCityToggle.checked) renderPerCityInputs();
 });
+elements.langIt.addEventListener("click", () => setLanguage("it"));
+elements.langEn.addEventListener("click", () => setLanguage("en"));
 
+applyStaticI18n();
+elements.langIt.classList.toggle("active", currentLang === "it");
+elements.langEn.classList.toggle("active", currentLang === "en");
 populatePresetOptions();
 applyPreset("standard");
 updateDecisionState();
