@@ -1,3 +1,7 @@
+// Writes the confirmed order to a per-request file. The file body is produced by the
+// FreeMarker template templates/orderFile.ftl (rendered into the `fileContent` input variable
+// by the task's input mapping), so all formatting and data assembly live in the template.
+// This script only handles the I/O.
 var system = java.lang.System;
 var File = java.io.File;
 var FileWriter = java.io.FileWriter;
@@ -10,19 +14,10 @@ try {
     }
 
     var fileName = "data/orders/confirmed/order_" + requestId + ".txt";
-    var fileWriter = new FileWriter(fileName);
-    var bufferedWriter = new BufferedWriter(fileWriter);
-
-    bufferedWriter.write("=== ORDER CONFIRMATION ===\n");
-    bufferedWriter.write("Request ID     : " + requestId + "\n");
-    bufferedWriter.write("Username       : " + username + "\n");
-    bufferedWriter.write("Invoice Number : " + invoiceNumber + "\n");
-    bufferedWriter.write("Total Amount   : " + amountDue + "\n");
-    bufferedWriter.write("Format         : " + posterFormat + "\n");
-    bufferedWriter.write("Selected Zones : " + selectedZonesJSON + "\n");
-    bufferedWriter.write("==========================\n");
-
+    var bufferedWriter = new BufferedWriter(new FileWriter(fileName));
+    bufferedWriter.write(fileContent);
     bufferedWriter.close();
+
     system.out.println("Order file successfully created at: " + fileName);
 
 } catch (e) {

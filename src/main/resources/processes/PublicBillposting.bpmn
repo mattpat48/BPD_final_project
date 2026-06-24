@@ -137,10 +137,24 @@
         </camunda:connector>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_Confirm</bpmn:incoming>
-      <bpmn:outgoing>Flow_SaveOrder</bpmn:outgoing>
+      <bpmn:outgoing>Flow_ConfirmToValidate</bpmn:outgoing>
     </bpmn:serviceTask>
 
+    <bpmn:scriptTask id="Task_ValidateConfirmation" name="Validate Confirmation" scriptFormat="javascript" camunda:resource="classpath:scripts/validateConfirmation.js">
+      <bpmn:incoming>Flow_ConfirmToValidate</bpmn:incoming>
+      <bpmn:outgoing>Flow_SaveOrder</bpmn:outgoing>
+    </bpmn:scriptTask>
+
     <bpmn:scriptTask id="Task_SaveOrderFile" name="Save Order Details" scriptFormat="javascript" camunda:resource="classpath:scripts/saveOrderFile.js">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <!-- The file body is produced by a FreeMarker template (same pattern as the SOAP
+               connectors). The script task below only writes this rendered string to disk. -->
+          <camunda:inputParameter name="fileContent">
+            <camunda:script scriptFormat="freemarker" resource="classpath:templates/orderFile.ftl" />
+          </camunda:inputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
       <bpmn:incoming>Flow_SaveOrder</bpmn:incoming>
       <bpmn:outgoing>Flow_ConfirmedEnd</bpmn:outgoing>
     </bpmn:scriptTask>
@@ -213,7 +227,8 @@
     <bpmn:sequenceFlow id="Flow_6" sourceRef="Task_CheckAvailability" targetRef="Task_ValidateAvailability" />
     <bpmn:sequenceFlow id="Flow_7" sourceRef="Task_ValidateAvailability" targetRef="Event_WaitForDecision" />
     <bpmn:sequenceFlow id="Flow_8" sourceRef="Event_WaitForDecision" targetRef="Gateway_Decision" />
-    <bpmn:sequenceFlow id="Flow_SaveOrder" sourceRef="Task_ConfirmRequest" targetRef="Task_SaveOrderFile" />
+    <bpmn:sequenceFlow id="Flow_ConfirmToValidate" sourceRef="Task_ConfirmRequest" targetRef="Task_ValidateConfirmation" />
+    <bpmn:sequenceFlow id="Flow_SaveOrder" sourceRef="Task_ValidateConfirmation" targetRef="Task_SaveOrderFile" />
     <bpmn:sequenceFlow id="Flow_ConfirmedEnd" sourceRef="Task_SaveOrderFile" targetRef="EndEvent_Confirmed" />
     <bpmn:sequenceFlow id="Flow_CancelToLog" sourceRef="Task_CancelRequest" targetRef="Task_LogCancellation" />
     <bpmn:sequenceFlow id="Flow_LogToEnd" sourceRef="Task_LogCancellation" targetRef="EndEvent_Cancelled" />
@@ -262,13 +277,16 @@
       <bpmndi:BPMNShape id="Task_ConfirmRequest_di" bpmnElement="Task_ConfirmRequest">
         <dc:Bounds x="1340" y="80" width="100" height="80" />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Task_SaveOrderFile_di" bpmnElement="Task_SaveOrderFile">
+      <bpmndi:BPMNShape id="Task_ValidateConfirmation_di" bpmnElement="Task_ValidateConfirmation">
         <dc:Bounds x="1490" y="80" width="100" height="80" />
       </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_SaveOrderFile_di" bpmnElement="Task_SaveOrderFile">
+        <dc:Bounds x="1640" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="EndEvent_Confirmed_di" bpmnElement="EndEvent_Confirmed">
-        <dc:Bounds x="1652" y="102" width="36" height="36" />
+        <dc:Bounds x="1802" y="102" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="1629" y="145" width="82" height="14" />
+          <dc:Bounds x="1779" y="145" width="82" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
 
@@ -343,13 +361,17 @@
           <dc:Bounds x="1294" y="95" width="37" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_SaveOrder_di" bpmnElement="Flow_SaveOrder">
+      <bpmndi:BPMNEdge id="Flow_ConfirmToValidate_di" bpmnElement="Flow_ConfirmToValidate">
         <di:waypoint x="1440" y="120" />
         <di:waypoint x="1490" y="120" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_ConfirmedEnd_di" bpmnElement="Flow_ConfirmedEnd">
+      <bpmndi:BPMNEdge id="Flow_SaveOrder_di" bpmnElement="Flow_SaveOrder">
         <di:waypoint x="1590" y="120" />
-        <di:waypoint x="1652" y="120" />
+        <di:waypoint x="1640" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ConfirmedEnd_di" bpmnElement="Flow_ConfirmedEnd">
+        <di:waypoint x="1740" y="120" />
+        <di:waypoint x="1802" y="120" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_Cancel_di" bpmnElement="Flow_Cancel">
         <di:waypoint x="1255" y="145" />

@@ -37,6 +37,10 @@ public class ProcessController {
     private static final Set<String> ALLOWED_STRATEGIES = new HashSet<>(Arrays.asList(
             "GREEDY", "MAX_ZONES", "BALANCED_COVERAGE", "LOWEST_TOTAL"));
 
+    /** Serializes the optional per-city budget map into the JSON string the BPMN script reads. */
+    private static final com.fasterxml.jackson.databind.ObjectMapper JSON =
+            new com.fasterxml.jackson.databind.ObjectMapper();
+
     @PostMapping("/request")
     public ResponseEntity<?> requestAvailability(@RequestBody AvailabilityRequestDto input) {
 
@@ -175,6 +179,20 @@ public class ProcessController {
                     .correlateWithResult();
 
             String processInstanceId = result.getExecution().getProcessInstanceId();
+
+            // A fault on the confirm/cancel branch (e.g. an invalid bill from the posting service)
+            // is raised as a BPMN error and recorded by the error sub-process. We translate it into
+            // a semantic HTTP status instead of returning a fake "N/A" bill (or a raw 500), exactly
+            // as /request does.
+            Object errorCode = readVar(null, processInstanceId, "errorCode");
+            if (errorCode != null) {
+                Object errorMessage = readVar(null, processInstanceId, "errorMessage");
+                Map<String, Object> errorBody = new HashMap<>();
+                errorBody.put("error", errorMessage != null ? errorMessage : errorCode);
+                errorBody.put("errorCode", errorCode);
+                return ResponseEntity.status(mapBusinessError(errorCode.toString())).body(errorBody);
+            }
+
             Map<String, Object> responseData = new HashMap<>();
             //responseData.put("message", "Decision applied successfully.");
 
@@ -210,6 +228,12 @@ public class ProcessController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Collections.singletonMap("error", "No active process found waiting for decision with request ID: " + input.getRequestId()));
         } catch (Exception e) {
+            // A confirm/cancel that reaches an unavailable posting service surfaces here as a
+            // connector exception: map it to 503 instead of a raw 500, just like /request.
+            if (isConnectivityFault(e)) {
+                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                        .body(Collections.singletonMap("error", "An external service is currently unavailable. Please retry later."));
+            }
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Collections.singletonMap("error", "Error correlating message: " + e.getMessage()));
         }
